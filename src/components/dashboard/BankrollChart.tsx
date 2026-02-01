@@ -62,8 +62,8 @@ export function BankrollChart({ data }: BankrollChartProps) {
                                         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                                     }}
                                     labelStyle={{ fontWeight: 600 }}
-                                    formatter={(value: number) => [
-                                        `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                                    formatter={(value) => [
+                                        `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                                         "Saldo",
                                     ]}
                                 />
