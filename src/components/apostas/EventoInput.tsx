@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,20 @@ interface EventoInputProps {
 }
 
 export function EventoInput({ index, evento, onChange, onRemove, showRemove }: EventoInputProps) {
+    // Local state for odd input to allow typing decimals like "1." or "1.8"
+    const [oddInput, setOddInput] = useState<string>(
+        evento.odd > 0 ? evento.odd.toString() : ""
+    );
+
+    // Sync local state when evento.odd changes externally (e.g., reset form)
+    useEffect(() => {
+        const currentNum = parseFloat(oddInput);
+        // Only sync if the external value is different from local parsed value
+        if (evento.odd !== currentNum && !(evento.odd === 0 && (oddInput === "" || oddInput === "."))) {
+            setOddInput(evento.odd > 0 ? evento.odd.toString() : "");
+        }
+    }, [evento.odd]);
+
     const handleChange = (field: keyof ApostaEvento, value: string | number) => {
         onChange(index, { ...evento, [field]: value });
     };
@@ -25,7 +40,7 @@ export function EventoInput({ index, evento, onChange, onRemove, showRemove }: E
         let value = e.target.value.replace(",", ".");
 
         // Only allow numbers and one decimal point
-        if (!/^(\d+\.?\d*)?$/.test(value)) {
+        if (!/^(\d*\.?\d*)$/.test(value)) {
             return;
         }
 
@@ -35,12 +50,17 @@ export function EventoInput({ index, evento, onChange, onRemove, showRemove }: E
             value = parts[0] + "." + parts[1].slice(0, 2);
         }
 
-        const num = parseFloat(value);
-        handleChange("odd", isNaN(num) ? 0 : num);
-    };
+        // Update local display state immediately (allows typing "1." or "1.8")
+        setOddInput(value);
 
-    // Display value for odd input
-    const oddDisplayValue = evento.odd > 0 ? evento.odd.toString() : "";
+        // Update parent with parsed number
+        const num = parseFloat(value);
+        if (!isNaN(num)) {
+            handleChange("odd", num);
+        } else if (value === "" || value === ".") {
+            handleChange("odd", 0);
+        }
+    };
 
     return (
         <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
@@ -79,7 +99,7 @@ export function EventoInput({ index, evento, onChange, onRemove, showRemove }: E
                         type="text"
                         inputMode="decimal"
                         placeholder="1.85"
-                        value={oddDisplayValue}
+                        value={oddInput}
                         onChange={handleOddChange}
                         required
                     />
