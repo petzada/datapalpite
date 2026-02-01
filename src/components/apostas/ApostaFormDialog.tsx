@@ -48,12 +48,21 @@ export function ApostaFormDialog({ open, onOpenChange, bancas }: ApostaFormDialo
     const [stake, setStake] = useState("");
     const [eventos, setEventos] = useState<ApostaEvento[]>([{ ...emptyEvento }]);
 
+    // Get today's date in dd/mm/yyyy format
+    function getTodayFormatted(): string {
+        const today = new Date();
+        const day = String(today.getDate()).padStart(2, "0");
+        const month = String(today.getMonth() + 1).padStart(2, "0");
+        const year = today.getFullYear();
+        return `${day}/${month}/${year}`;
+    }
+
     // Reset form when dialog opens
     useEffect(() => {
         if (open) {
             setTipo("simples");
             setBancaId("");
-            setDataAposta(new Date().toISOString().split("T")[0]);
+            setDataAposta(getTodayFormatted());
             setStake("");
             setEventos([{ ...emptyEvento }]);
             setError(null);
@@ -106,7 +115,7 @@ export function ApostaFormDialog({ open, onOpenChange, bancas }: ApostaFormDialo
     // Calculate combined odds
     const oddsTotal = eventos.reduce((acc, ev) => acc * (ev.odd || 1), 1);
 
-    // Format date for display
+    // Format date input with mask (dd/mm/yyyy)
     function formatDateInput(value: string): string {
         const cleaned = value.replace(/\D/g, "");
         if (cleaned.length <= 2) return cleaned;
@@ -114,11 +123,20 @@ export function ApostaFormDialog({ open, onOpenChange, bancas }: ApostaFormDialo
         return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
     }
 
-    // Parse date input (dd/mm/yyyy -> yyyy-mm-dd)
+    // Parse date input (dd/mm/yyyy -> yyyy-mm-dd for database)
     function parseDateInput(value: string): string {
-        const parts = value.split("/");
-        if (parts.length === 3 && parts[2].length === 4) {
-            return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (match) {
+            const [, day, month, year] = match;
+            // Validate date
+            const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            if (
+                date.getDate() === parseInt(day) &&
+                date.getMonth() === parseInt(month) - 1 &&
+                date.getFullYear() === parseInt(year)
+            ) {
+                return `${year}-${month}-${day}`;
+            }
         }
         return "";
     }
@@ -186,14 +204,6 @@ export function ApostaFormDialog({ open, onOpenChange, bancas }: ApostaFormDialo
         }
     }
 
-    // Format date value for display (yyyy-mm-dd -> dd/mm/yyyy)
-    function getDisplayDate(value: string): string {
-        if (value.includes("-")) {
-            const parts = value.split("-");
-            return `${parts[2]}/${parts[1]}/${parts[0]}`;
-        }
-        return value;
-    }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -252,7 +262,7 @@ export function ApostaFormDialog({ open, onOpenChange, bancas }: ApostaFormDialo
                                 <Input
                                     id="data"
                                     placeholder="dd/mm/aaaa"
-                                    value={getDisplayDate(dataAposta)}
+                                    value={dataAposta}
                                     onChange={handleDateChange}
                                     maxLength={10}
                                     required

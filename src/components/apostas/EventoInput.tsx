@@ -19,14 +19,28 @@ export function EventoInput({ index, evento, onChange, onRemove, showRemove }: E
         onChange(index, { ...evento, [field]: value });
     };
 
-    // Format odd input
+    // Handle odd input - accepts decimals like 1.85, 2.10, etc.
     const handleOddChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value.replace(",", ".");
-        const num = parseFloat(value);
-        if (!isNaN(num) || value === "" || value === ".") {
-            handleChange("odd", value === "" ? 0 : num || 0);
+        // Replace comma with dot for Brazilian users
+        let value = e.target.value.replace(",", ".");
+
+        // Only allow numbers and one decimal point
+        if (!/^(\d+\.?\d*)?$/.test(value)) {
+            return;
         }
+
+        // Limit to 2 decimal places
+        const parts = value.split(".");
+        if (parts[1] && parts[1].length > 2) {
+            value = parts[0] + "." + parts[1].slice(0, 2);
+        }
+
+        const num = parseFloat(value);
+        handleChange("odd", isNaN(num) ? 0 : num);
     };
+
+    // Display value for odd input
+    const oddDisplayValue = evento.odd > 0 ? evento.odd.toString() : "";
 
     return (
         <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
@@ -62,8 +76,10 @@ export function EventoInput({ index, evento, onChange, onRemove, showRemove }: E
                     <Label htmlFor={`odd-${index}`}>Odd *</Label>
                     <Input
                         id={`odd-${index}`}
+                        type="text"
+                        inputMode="decimal"
                         placeholder="1.85"
-                        value={evento.odd || ""}
+                        value={oddDisplayValue}
                         onChange={handleOddChange}
                         required
                     />
