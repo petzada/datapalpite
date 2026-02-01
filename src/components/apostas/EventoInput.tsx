@@ -13,9 +13,10 @@ interface EventoInputProps {
     onChange: (index: number, evento: ApostaEvento) => void;
     onRemove?: (index: number) => void;
     showRemove?: boolean;
+    hideOdd?: boolean;
 }
 
-export function EventoInput({ index, evento, onChange, onRemove, showRemove }: EventoInputProps) {
+export function EventoInput({ index, evento, onChange, onRemove, showRemove, hideOdd }: EventoInputProps) {
     // Local state for odd input to allow typing decimals like "1." or "1.8"
     const [oddInput, setOddInput] = useState<string>(
         evento.odd > 0 ? evento.odd.toString() : ""
@@ -23,11 +24,9 @@ export function EventoInput({ index, evento, onChange, onRemove, showRemove }: E
 
     // Sync local state when evento.odd changes externally (e.g., reset form)
     useEffect(() => {
-        const currentNum = parseFloat(oddInput);
-        // Only sync if the external value is different from local parsed value
-        if (evento.odd !== currentNum && !(evento.odd === 0 && (oddInput === "" || oddInput === "."))) {
-            setOddInput(evento.odd > 0 ? evento.odd.toString() : "");
-        }
+        // Intentionally only syncing when evento.odd changes from parent
+        setOddInput(evento.odd > 0 ? evento.odd.toString() : "");
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [evento.odd]);
 
     const handleChange = (field: keyof ApostaEvento, value: string | number) => {
@@ -81,7 +80,7 @@ export function EventoInput({ index, evento, onChange, onRemove, showRemove }: E
                 )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className={hideOdd ? "" : "grid grid-cols-2 gap-4"}>
                 <div className="space-y-2">
                     <Label htmlFor={`esporte-${index}`}>Esporte *</Label>
                     <Input
@@ -92,18 +91,20 @@ export function EventoInput({ index, evento, onChange, onRemove, showRemove }: E
                         required
                     />
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor={`odd-${index}`}>Odd *</Label>
-                    <Input
-                        id={`odd-${index}`}
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="1.85"
-                        value={oddInput}
-                        onChange={handleOddChange}
-                        required
-                    />
-                </div>
+                {!hideOdd && (
+                    <div className="space-y-2">
+                        <Label htmlFor={`odd-${index}`}>Odd *</Label>
+                        <Input
+                            id={`odd-${index}`}
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="1.85"
+                            value={oddInput}
+                            onChange={handleOddChange}
+                            required
+                        />
+                    </div>
+                )}
             </div>
 
             <div className="space-y-2">

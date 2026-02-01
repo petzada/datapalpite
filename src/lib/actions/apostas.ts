@@ -36,6 +36,7 @@ export interface ApostaFormData {
     data_aposta: string;
     stake: number;
     eventos: ApostaEvento[];
+    odds_total?: number; // Optional: provided for multiple bets
 }
 
 // Listar apostas do usuário
@@ -77,8 +78,8 @@ export async function createAposta(formData: ApostaFormData): Promise<{ success:
         return { success: false, error: "Usuário não autenticado" };
     }
 
-    // Calcular odds total (produto das odds individuais)
-    const oddsTotal = formData.eventos.reduce((acc, ev) => acc * ev.odd, 1);
+    // Use provided odds_total or calculate from eventos (for simple bets)
+    const oddsTotal = formData.odds_total ?? formData.eventos.reduce((acc, ev) => acc * ev.odd, 1);
 
     // Inserir aposta
     const { data: aposta, error: apostaError } = await supabase

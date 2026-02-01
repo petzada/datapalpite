@@ -47,6 +47,7 @@ export function ApostaFormDialog({ open, onOpenChange, bancas }: ApostaFormDialo
     const [dataAposta, setDataAposta] = useState("");
     const [stake, setStake] = useState("");
     const [eventos, setEventos] = useState<ApostaEvento[]>([{ ...emptyEvento }]);
+    const [oddTotal, setOddTotal] = useState<string>("");
 
     // Get today's date in dd/mm/yyyy format
     function getTodayFormatted(): string {
@@ -65,6 +66,7 @@ export function ApostaFormDialog({ open, onOpenChange, bancas }: ApostaFormDialo
             setDataAposta(getTodayFormatted());
             setStake("");
             setEventos([{ ...emptyEvento }]);
+            setOddTotal("");
             setError(null);
         }
     }, [open]);
@@ -112,8 +114,16 @@ export function ApostaFormDialog({ open, onOpenChange, bancas }: ApostaFormDialo
         }
     }
 
-    // Calculate combined odds
-    const oddsTotal = eventos.reduce((acc, ev) => acc * (ev.odd || 1), 1);
+    // Handle odd total change for multiple bets
+    function handleOddTotalChange(e: React.ChangeEvent<HTMLInputElement>) {
+        let value = e.target.value.replace(",", ".");
+        if (!/^(\d*\.?\d*)$/.test(value)) return;
+        const parts = value.split(".");
+        if (parts[1] && parts[1].length > 2) {
+            value = parts[0] + "." + parts[1].slice(0, 2);
+        }
+        setOddTotal(value);
+    }
 
     // Format date input with mask (dd/mm/yyyy)
     function formatDateInput(value: string): string {
@@ -175,12 +185,38 @@ export function ApostaFormDialog({ open, onOpenChange, bancas }: ApostaFormDialo
 
         // Validate eventos
         for (const ev of eventos) {
-            if (!ev.esporte || !ev.evento || !ev.mercado || !ev.odd || ev.odd <= 0) {
+            // For multiple bets, don't require individual odds
+            const needsOdd = tipo === "simples";
+            if (!ev.esporte || !ev.evento || !ev.mercado) {
                 setError("Preencha todos os campos dos eventos");
                 setLoading(false);
                 return;
             }
+            if (needsOdd && (!ev.odd || ev.odd <= 0)) {
+                setError("Informe a odd do evento");
+                setLoading(false);
+                return;
+            }
         }
+
+        // For multiple bets, validate oddTotal
+        let finalOdds: number;
+        if (tipo === "multipla") {
+            finalOdds = parseFloat(oddTotal);
+            if (isNaN(finalOdds) || finalOdds <= 0) {
+                setError("Informe a odd total da múltipla");
+                setLoading(false);
+                return;
+            }
+        } else {
+            finalOdds = eventos[0]?.odd || 0;
+        }
+
+        // Set odds on eventos for storage
+        const eventosToSave = eventos.map(ev => ({
+            ...ev,
+            odd: tipo === "simples" ? ev.odd : finalOdds / eventos.length // Distribute for reference
+        }));
 
         try {
             const result = await createAposta({
@@ -188,7 +224,8 @@ export function ApostaFormDialog({ open, onOpenChange, bancas }: ApostaFormDialo
                 tipo,
                 data_aposta: parsedDate,
                 stake: parsedStake,
-                eventos,
+                eventos: eventosToSave,
+                odds_total: finalOdds,
             });
 
             if (result.success) {
@@ -280,6 +317,7 @@ export function ApostaFormDialog({ open, onOpenChange, bancas }: ApostaFormDialo
                                     onChange={handleEventoChange}
                                     onRemove={removeEvento}
                                     showRemove={tipo === "multipla" && eventos.length > 1}
+                                    hideOdd={tipo === "multipla"}
                                 />
                             ))}
 
@@ -303,10 +341,22 @@ export function ApostaFormDialog({ open, onOpenChange, bancas }: ApostaFormDialo
                             />
                         </div>
 
-                        {/* Odds total para múltipla */}
-                        {tipo === "multipla" && eventos.length > 1 && (
-                            <div className="text-sm text-muted-foreground text-right">
-                                Odd combinada: <strong>{oddsTotal.toFixed(2)}</strong>
+                        {/* Odd total para múltipla */}
+                        {tipo === "multipla" && (
+                            <div className="space-y-2">
+                                <Label htmlFor="oddTotal">Odd Total da Casa *</Label>
+                                <Input
+                                    id="oddTotal"
+                                    type="text"
+                                    inputMode="decimal"
+                                    placeholder="Ex: 3.45"
+                                    value={oddTotal}
+                                    onChange={handleOddTotalChange}
+                                    required
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Insira a odd combinada fornecida pela casa de apostas
+                                </p>
                             </div>
                         )}
 
