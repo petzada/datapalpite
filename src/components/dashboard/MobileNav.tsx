@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Menu, X, Settings, LogOut, User, Wallet } from "lucide-react";
+import { Home, Menu, X, Settings, LogOut, User, Wallet, Target } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,6 +20,7 @@ interface MobileNavProps {
 const bottomNavItems = [
     { name: "Home", href: "/dashboard", icon: Home },
     { name: "Bancas", href: "/dashboard/bancas", icon: Wallet },
+    { name: "Apostas", href: "/dashboard/apostas", icon: Target },
 ];
 
 export function MobileNav({ user }: MobileNavProps) {

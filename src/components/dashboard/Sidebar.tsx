@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, LogOut, Wallet } from "lucide-react";
+import { LayoutDashboard, LogOut, Wallet, Target } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ const menuItems = [
         items: [
             { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
             { name: "Bancas", href: "/dashboard/bancas", icon: Wallet },
+            { name: "Apostas", href: "/dashboard/apostas", icon: Target },
         ],
     },
 ];
@@ -79,8 +80,8 @@ export function Sidebar({ user }: SidebarProps) {
                                         <Link
                                             href={item.href}
                                             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive
-                                                    ? "bg-white/20 text-white font-medium"
-                                                    : "text-white/80 hover:bg-white/10 hover:text-white"
+                                                ? "bg-white/20 text-white font-medium"
+                                                : "text-white/80 hover:bg-white/10 hover:text-white"
                                                 }`}
                                         >
                                             <Icon className="w-5 h-5" />
