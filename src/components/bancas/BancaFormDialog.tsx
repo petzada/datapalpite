@@ -29,7 +29,7 @@ export function BancaFormDialog({ open, onOpenChange, banca }: BancaFormDialogPr
     const [formData, setFormData] = useState({
         nome: "",
         saldo_inicial: "",
-        meta_roi: "",
+        stake_percentual: "2.00",
         notas: "",
     });
 
@@ -41,14 +41,14 @@ export function BancaFormDialog({ open, onOpenChange, banca }: BancaFormDialogPr
             setFormData({
                 nome: banca.nome,
                 saldo_inicial: formatCurrencyInput(banca.saldo_inicial),
-                meta_roi: banca.meta_roi || "",
+                stake_percentual: banca.stake_percentual?.toString() || "2.00",
                 notas: banca.notas || "",
             });
         } else if (open && !banca) {
             setFormData({
                 nome: "",
                 saldo_inicial: "",
-                meta_roi: "",
+                stake_percentual: "2.00",
                 notas: "",
             });
         }
@@ -90,7 +90,7 @@ export function BancaFormDialog({ open, onOpenChange, banca }: BancaFormDialogPr
         const data = {
             nome: formData.nome.trim(),
             saldo_inicial: parseCurrency(formData.saldo_inicial),
-            meta_roi: formData.meta_roi.trim() || undefined,
+            stake_percentual: parseFloat(formData.stake_percentual) || 2.0,
             notas: formData.notas.trim() || undefined,
         };
 
@@ -164,18 +164,27 @@ export function BancaFormDialog({ open, onOpenChange, banca }: BancaFormDialogPr
                             />
                         </div>
 
-                        {/* Meta de ROI */}
+                        {/* Stake Percentual */}
                         <div className="space-y-2">
-                            <Label htmlFor="meta_roi">
-                                Meta de gestão{" "}
-                                <span className="text-muted-foreground">(opcional)</span>
+                            <Label htmlFor="stake_percentual">
+                                Stake por aposta (%)
                             </Label>
-                            <Input
-                                id="meta_roi"
-                                placeholder="Ex: 20% ao mês, R$ 5.000..."
-                                value={formData.meta_roi}
-                                onChange={(e) => setFormData({ ...formData, meta_roi: e.target.value })}
-                            />
+                            <div className="flex items-center gap-4">
+                                <input
+                                    type="range"
+                                    id="stake_percentual_slider"
+                                    min="0.5"
+                                    max="10"
+                                    step="0.5"
+                                    value={formData.stake_percentual}
+                                    onChange={(e) => setFormData({ ...formData, stake_percentual: e.target.value })}
+                                    className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                                />
+                                <span className="font-medium w-14 text-right">{formData.stake_percentual}%</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Percentual fixo da banca por aposta. Recomendado: 1-3%
+                            </p>
                         </div>
 
                         {/* Notas */}

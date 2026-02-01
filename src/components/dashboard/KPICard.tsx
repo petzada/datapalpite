@@ -7,16 +7,35 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface KPICardProps {
     title: string;
     value: string;
     description: string;
     icon: LucideIcon;
+    secondaryValue?: string;
+    color?: "default" | "green" | "yellow" | "red";
+    showWarning?: boolean;
 }
 
-export function KPICard({ title, value, description, icon: Icon }: KPICardProps) {
+export function KPICard({
+    title,
+    value,
+    description,
+    icon: Icon,
+    secondaryValue,
+    color = "default",
+    showWarning = false,
+}: KPICardProps) {
+    const colorClasses = {
+        default: "text-foreground",
+        green: "text-green-600 dark:text-green-400",
+        yellow: "text-yellow-600 dark:text-yellow-400",
+        red: "text-red-600 dark:text-red-400",
+    };
+
     return (
         <TooltipProvider>
             <Tooltip>
@@ -27,11 +46,21 @@ export function KPICard({ title, value, description, icon: Icon }: KPICardProps)
                                 <span className="text-sm font-medium text-muted-foreground">
                                     {title}
                                 </span>
-                                <Icon className="w-4 h-4 text-muted-foreground" />
+                                <div className="flex items-center gap-1">
+                                    {showWarning && (
+                                        <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                                    )}
+                                    <Icon className="w-4 h-4 text-muted-foreground" />
+                                </div>
                             </div>
-                            <p className="text-2xl font-bold text-foreground">
+                            <p className={cn("text-2xl font-bold", colorClasses[color])}>
                                 {value}
                             </p>
+                            {secondaryValue && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {secondaryValue}
+                                </p>
+                            )}
                         </CardContent>
                     </Card>
                 </TooltipTrigger>
@@ -42,3 +71,4 @@ export function KPICard({ title, value, description, icon: Icon }: KPICardProps)
         </TooltipProvider>
     );
 }
+
