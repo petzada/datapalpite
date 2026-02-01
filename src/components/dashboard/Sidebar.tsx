@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, LogOut, Wallet, Target } from "lucide-react";
+import { LayoutDashboard, LogOut, Wallet, Target, Calculator } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,12 @@ const menuItems = [
             { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
             { name: "Bancas", href: "/dashboard/bancas", icon: Wallet },
             { name: "Apostas", href: "/dashboard/apostas", icon: Target },
+        ],
+    },
+    {
+        section: "Ferramentas",
+        items: [
+            { name: "Calculadora EV", href: "/dashboard/calculadora-ev", icon: Calculator },
         ],
     },
 ];
