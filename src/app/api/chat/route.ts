@@ -1,5 +1,5 @@
 import { google } from "@ai-sdk/google";
-import { streamText, tool, convertToModelMessages, stepCountIs } from "ai";
+import { streamText, tool, convertToModelMessages, stepCountIs, UIMessage } from "ai";
 import { z } from "zod";
 import {
     getStandings,
@@ -34,13 +34,12 @@ export async function POST(req: Request) {
     }
 
     try {
-        const { messages } = await req.json();
-        const modelMessages = await convertToModelMessages(messages);
+        const { messages }: { messages: UIMessage[] } = await req.json();
 
         const result = streamText({
-            model: google("gemini-2.5-flash-lite-preview-02-05"), // Atualizado para 2.5 Flash Lite
+            model: google("gemini-2.5-flash-lite"),
             system: SYSTEM_PROMPT,
-            messages: modelMessages,
+            messages: await convertToModelMessages(messages),
             stopWhen: stepCountIs(5),
             tools: {
                 getStandings: tool({
@@ -70,10 +69,7 @@ export async function POST(req: Request) {
             },
         });
 
-        // @ts-expect-error
-        return result.toDataStreamResponse({
-            getErrorMessage: () => "Erro no processamento da IA",
-        });
+        return result.toUIMessageStreamResponse();
     } catch (error) {
         return new Response(JSON.stringify({ error: "Erro interno" }), { status: 500 });
     }

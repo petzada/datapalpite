@@ -1,6 +1,7 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import { useRef, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,11 @@ function getMessageText(parts: any): string {
 }
 
 export function AiChat() {
-    const { messages, status, sendMessage, error, clearError } = useChat();
+    const { messages, status, sendMessage, error, clearError } = useChat({
+        transport: new DefaultChatTransport({
+            api: "/api/chat",
+        }),
+    });
     const [inputValue, setInputValue] = useState("");
     const [showError, setShowError] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
