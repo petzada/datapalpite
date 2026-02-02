@@ -2,25 +2,49 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 const ABACATEPAY_API_URL = 'https://api.abacatepay.com/v1'
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://datapalpite.com.br'
 
 interface CreatePaymentRequest {
     planId: 'easy' | 'pro'
 }
 
-interface AbacatePayResponse {
+interface AbacatePayBillingResponse {
     data: {
-        brCode: string
-        brCodeBase64: string
-        externalId: string
+        id: string
+        url: string
+        amount: number
+        status: string
+        devMode: boolean
+        methods: string[]
+        products: Array<{
+            id: string
+            externalId: string
+            name: string
+            description: string
+            quantity: number
+            price: number
+        }>
+        frequency: string
+        nextBilling: string | null
+        customer: {
+            id: string
+            metadata: {
+                name: string
+                cellphone: string
+                email: string
+                taxId: string
+            }
+        } | null
+        metadata: Record<string, string>
+        createdAt: string
+        updatedAt: string
     }
-    error?: {
-        message: string
-    }
+    error?: string
 }
 
 const PLAN_PRICES = {
-    easy: 14.90,
-    pro: 39.90,
+    easy: 1490, // Price in cents
+    pro: 3990,
 }
 
 const PLAN_NAMES = {
@@ -53,55 +77,83 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const price = PLAN_PRICES[planId]
+        const priceInCents = PLAN_PRICES[planId]
         const description = PLAN_NAMES[planId]
 
-        // Get user profile for metadata
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('email, full_name')
-            .eq('id', user.id)
-            .single()
+        // Check if ABACATEPAY_API_KEY is configured
+        if (!process.env.ABACATEPAY_API_KEY) {
+            console.error('ABACATEPAY_API_KEY is not configured')
+            return NextResponse.json(
+                { error: 'Configuração de pagamento incompleta' },
+                { status: 500 }
+            )
+        }
 
-        // Call AbacatePay API to create PIX QR Code
-        const abacateResponse = await fetch(`${ABACATEPAY_API_URL}/pixQrCode/create`, {
+        // Call AbacatePay API to create billing
+        const abacateResponse = await fetch(`${ABACATEPAY_API_URL}/billing/create`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${process.env.ABACATEPAY_API_KEY}`,
             },
             body: JSON.stringify({
-                amount: price,
-                description,
-                expiresIn: 3600, // 1 hour
-                customer: {
-                    email: profile?.email || user.email,
-                    name: profile?.full_name || 'Cliente Data Palpite',
-                },
+                frequency: 'ONE_TIME',
+                methods: ['PIX'],
+                products: [
+                    {
+                        externalId: `${planId}-${user.id}-${Date.now()}`,
+                        name: description,
+                        description: `Assinatura mensal do ${description}`,
+                        quantity: 1,
+                        price: priceInCents,
+                    }
+                ],
                 metadata: {
                     userId: user.id,
                     planId,
                 },
+                returnUrl: `${BASE_URL}/pagamento/${planId}`,
+                completionUrl: `${BASE_URL}/dashboard?payment=success`,
             }),
         })
 
+        const responseText = await abacateResponse.text()
+
         if (!abacateResponse.ok) {
-            const errorData = await abacateResponse.json()
-            console.error('AbacatePay error:', errorData)
+            console.error('AbacatePay error status:', abacateResponse.status)
+            console.error('AbacatePay error response:', responseText)
+            return NextResponse.json(
+                { error: 'Erro ao gerar código PIX. Tente novamente.' },
+                { status: 500 }
+            )
+        }
+
+        let result: AbacatePayBillingResponse
+        try {
+            result = JSON.parse(responseText)
+        } catch {
+            console.error('Failed to parse AbacatePay response:', responseText)
+            return NextResponse.json(
+                { error: 'Resposta inválida do servidor de pagamento' },
+                { status: 500 }
+            )
+        }
+
+        if (result.error) {
+            console.error('AbacatePay API error:', result.error)
             return NextResponse.json(
                 { error: 'Erro ao gerar código PIX' },
                 { status: 500 }
             )
         }
 
-        const result: AbacatePayResponse = await abacateResponse.json()
-
+        // The billing/create endpoint returns a URL for payment
+        // The customer needs to access this URL to see the PIX QR Code
         return NextResponse.json({
-            brCode: result.data.brCode,
-            brCodeBase64: result.data.brCodeBase64,
-            externalId: result.data.externalId,
+            billingId: result.data.id,
+            paymentUrl: result.data.url,
             planId,
-            price,
+            priceInCents,
         })
 
     } catch (error) {
