@@ -13,7 +13,12 @@ interface FetchOptions {
 async function fetchFootballData({ endpoint, params }: FetchOptions) {
     const apiKey = process.env.FOOTBALL_DATA_API_KEY;
 
+    // Debug: Verificar se a chave está carregada
+    console.log(`[FootballData] Fetching: ${endpoint}`);
+    console.log(`[FootballData] API Key exists: ${!!apiKey}`);
+
     if (!apiKey) {
+        console.error("[FootballData] Erro: API Key não encontrada");
         throw new Error("FOOTBALL_DATA_API_KEY não configurada");
     }
 
@@ -24,19 +29,25 @@ async function fetchFootballData({ endpoint, params }: FetchOptions) {
         });
     }
 
-    const response = await fetch(url.toString(), {
-        headers: {
-            "X-Auth-Token": apiKey,
-        },
-        next: { revalidate: 300 }, // Cache de 5 minutos
-    });
+    try {
+        const response = await fetch(url.toString(), {
+            headers: {
+                "X-Auth-Token": apiKey,
+            },
+            next: { revalidate: 300 }, // Cache de 5 minutos
+        });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Football Data API error: ${response.status} - ${errorText}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[FootballData] API Error ${response.status}: ${errorText}`);
+            throw new Error(`Football Data API error: ${response.status} - ${errorText}`);
+        }
+
+        return response.json();
+    } catch (err) {
+        console.error(`[FootballData] Network/Fetch Error:`, err);
+        throw err;
     }
-
-    return response.json();
 }
 
 /**
