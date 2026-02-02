@@ -122,9 +122,8 @@ export async function POST(req: Request) {
             },
         });
 
-        // Usar toTextStreamResponse para compatibilidade em vez de toDataStreamResponse
-        // se o erro persistir, o problema pode estar na versão do SDK
-        return result.toTextStreamResponse();
+        // Usar toUIMessageStreamResponse para compatibilidade com useChat v3
+        return result.toUIMessageStreamResponse();
     } catch (error) {
         console.error("Erro na API de chat:", error);
         return new Response(

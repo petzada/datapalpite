@@ -24,11 +24,18 @@ function getMessageText(parts: Array<{ type: string; text?: string }>): string {
 }
 
 export function AiChat() {
-    const { messages, status, sendMessage } = useChat();
+    const { messages, status, sendMessage, error } = useChat();
     const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const isLoading = status === "streaming" || status === "submitted";
+
+    // Log de erro para debug
+    useEffect(() => {
+        if (error) {
+            console.error("Erro no chat:", error);
+        }
+    }, [error]);
 
     // Auto scroll para a última mensagem
     useEffect(() => {
@@ -135,6 +142,17 @@ export function AiChat() {
                                             <span className="text-sm text-muted-foreground">
                                                 Consultando dados...
                                             </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {error && (
+                                    <div className="flex gap-3 justify-start">
+                                        <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                                            <Bot className="w-4 h-4 text-destructive" />
+                                        </div>
+                                        <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                                            Erro ao processar: {error.message || "Tente novamente"}
                                         </div>
                                     </div>
                                 )}
