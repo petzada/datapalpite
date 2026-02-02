@@ -11,33 +11,14 @@ interface CreatePaymentRequest {
 interface AbacatePayBillingResponse {
     data: {
         id: string
-        url: string
         amount: number
         status: string
         devMode: boolean
-        methods: string[]
-        products: Array<{
-            id: string
-            externalId: string
-            name: string
-            description: string
-            quantity: number
-            price: number
-        }>
-        frequency: string
-        nextBilling: string | null
-        customer: {
-            id: string
-            metadata: {
-                name: string
-                cellphone: string
-                email: string
-                taxId: string
-            }
-        } | null
-        metadata: Record<string, string>
+        brCode: string
+        brCodeBase64: string
         createdAt: string
         updatedAt: string
+        expiresAt: string
     }
     error?: string
 }
@@ -89,31 +70,25 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Call AbacatePay API to create billing
-        const abacateResponse = await fetch(`${ABACATEPAY_API_URL}/billing/create`, {
+        // Call AbacatePay API to create Pix QR Code
+        const abacateResponse = await fetch(`${ABACATEPAY_API_URL}/pixQrCode/create`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${process.env.ABACATEPAY_API_KEY}`,
             },
             body: JSON.stringify({
-                frequency: 'ONE_TIME',
-                methods: ['PIX'],
-                products: [
-                    {
-                        externalId: `${planId}-${user.id}-${Date.now()}`,
-                        name: description,
-                        description: `Assinatura mensal do ${description}`,
-                        quantity: 1,
-                        price: priceInCents,
-                    }
-                ],
+                amount: priceInCents,
+                description: `Assinatura ${description}`,
+                customer: {
+                    name: user.user_metadata?.name || 'Cliente',
+                    email: user.email,
+                    taxId: user.user_metadata?.taxId || '00000000000' // Validação necessária em produção
+                },
                 metadata: {
                     userId: user.id,
                     planId,
-                },
-                returnUrl: `${BASE_URL}/pagamento/${planId}`,
-                completionUrl: `${BASE_URL}/dashboard?payment=success`,
+                }
             }),
         })
 
@@ -147,11 +122,11 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // The billing/create endpoint returns a URL for payment
-        // The customer needs to access this URL to see the PIX QR Code
+        // Return the QR Code data directly
         return NextResponse.json({
             billingId: result.data.id,
-            paymentUrl: result.data.url,
+            brCode: result.data.brCode,
+            brCodeBase64: result.data.brCodeBase64,
             planId,
             priceInCents,
         })

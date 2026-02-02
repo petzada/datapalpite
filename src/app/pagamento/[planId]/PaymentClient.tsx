@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Loader2, ExternalLink, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Loader2, Copy, Check, AlertCircle } from 'lucide-react'
+import Image from 'next/image'
 
 interface PaymentClientProps {
     planId: 'easy' | 'pro'
@@ -17,12 +18,13 @@ interface PaymentClientProps {
 
 interface PaymentResponse {
     billingId: string
-    paymentUrl: string
+    brCode: string
+    brCodeBase64: string
     planId: string
     priceInCents: number
 }
 
-type PaymentStatus = 'idle' | 'loading' | 'redirecting' | 'error'
+type PaymentStatus = 'idle' | 'loading' | 'success' | 'error'
 
 export function PaymentClient({
     planId,
@@ -32,8 +34,9 @@ export function PaymentClient({
 }: PaymentClientProps) {
     const router = useRouter()
     const [status, setStatus] = useState<PaymentStatus>('idle')
-    const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
+    const [paymentData, setPaymentData] = useState<PaymentResponse | null>(null)
     const [error, setError] = useState<string | null>(null)
+    const [copied, setCopied] = useState(false)
 
     // Generate Payment URL on mount
     useEffect(() => {
@@ -57,18 +60,21 @@ export function PaymentClient({
             }
 
             const data: PaymentResponse = await response.json()
-            setPaymentUrl(data.paymentUrl)
-
-            // Auto redirect after a short delay
-            setStatus('redirecting')
-            setTimeout(() => {
-                window.location.href = data.paymentUrl
-            }, 1000)
+            setPaymentData(data)
+            setStatus('success')
 
         } catch (err) {
             console.error(err)
             setError(err instanceof Error ? err.message : 'Erro desconhecido')
             setStatus('error')
+        }
+    }
+
+    const copyToClipboard = () => {
+        if (paymentData?.brCode) {
+            navigator.clipboard.writeText(paymentData.brCode)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
         }
     }
 
@@ -99,34 +105,71 @@ export function PaymentClient({
                             </div>
                             <div className="text-right">
                                 <p className="text-2xl font-bold text-primary">{planPrice}</p>
-                                <p className="text-muted-foreground text-sm">/mês</p>
                             </div>
-                        </div>
-                        <div className="border-t pt-4">
-                            <p className="text-sm text-muted-foreground">
-                                Olá, <span className="font-medium text-foreground">{userName}</span>!
-                                Você será redirecionado para o pagamento seguro.
-                            </p>
                         </div>
                     </div>
 
                     {/* Status Card */}
                     <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
-                        {(status === 'loading' || status === 'redirecting') && (
+                        {status === 'loading' && (
                             <div className="flex flex-col items-center justify-center py-12">
                                 <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
                                 <h2 className="text-lg font-semibold mb-2">
-                                    {status === 'loading' ? 'Gerando pagamento...' : 'Redirecionando...'}
+                                    Gerando Pix...
                                 </h2>
-                                <p className="text-muted-foreground mb-6">
-                                    Por favor, aguarde um instante.
+                                <p className="text-muted-foreground">
+                                    Aguarde um momento.
                                 </p>
-                                {status === 'redirecting' && paymentUrl && (
-                                    <Button onClick={() => window.location.href = paymentUrl} className="mt-2">
-                                        Clique aqui se não for redirecionado
-                                        <ExternalLink className="ml-2 h-4 w-4" />
-                                    </Button>
-                                )}
+                            </div>
+                        )}
+
+                        {status === 'success' && paymentData && (
+                            <div className="flex flex-col items-center justify-center">
+                                <h2 className="text-lg font-semibold mb-6">
+                                    Escaneie o QR Code para pagar
+                                </h2>
+
+                                <div className="bg-white p-4 rounded-xl border-2 border-primary/20 mb-6 shadow-sm">
+                                    <Image
+                                        src={paymentData.brCodeBase64}
+                                        alt="QR Code Pix"
+                                        width={250}
+                                        height={250}
+                                        className="rounded-lg"
+                                    />
+                                </div>
+
+                                <div className="w-full mb-6">
+                                    <p className="text-sm text-muted-foreground mb-2">
+                                        Ou copie o código Pix:
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1 bg-muted p-3 rounded-lg text-xs font-mono truncate text-left border">
+                                            {paymentData.brCode}
+                                        </div>
+                                        <Button
+                                            onClick={copyToClipboard}
+                                            size="icon"
+                                            variant="outline"
+                                            className={copied ? "text-green-600 border-green-600 bg-green-50" : ""}
+                                        >
+                                            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="bg-blue-50 text-blue-700 p-4 rounded-lg text-sm mb-6">
+                                    <p className="font-semibold mb-1">Pagamento seguro</p>
+                                    A liberação do seu plano ocorre automaticamente após a confirmação do pagamento.
+                                </div>
+
+                                <Button
+                                    onClick={() => router.push('/dashboard')}
+                                    variant="outline"
+                                    className="w-full"
+                                >
+                                    Já fiz o pagamento
+                                </Button>
                             </div>
                         )}
 
@@ -135,7 +178,7 @@ export function PaymentClient({
                                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
                                     <AlertCircle className="w-8 h-8 text-red-500" />
                                 </div>
-                                <p className="text-red-600 font-medium mb-2">Erro ao iniciar pagamento</p>
+                                <p className="text-red-600 font-medium mb-2">Erro ao gerar Pix</p>
                                 <p className="text-muted-foreground text-sm text-center mb-6">{error}</p>
                                 <Button onClick={generatePayment} variant="outline">
                                     Tentar novamente
