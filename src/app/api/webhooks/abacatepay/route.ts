@@ -50,43 +50,55 @@ export async function POST(request: NextRequest) {
     // ============================================================
     // STEP 4: Verify HMAC signature
     // AbacatePay sends signature in Base64 format
+    // Try multiple secret formats (plain, hex-decoded, base64-decoded)
     // ============================================================
-    try {
-        // Generate expected signature from raw body (DO NOT modify rawBody!)
-        const expectedBuffer = crypto
-            .createHmac('sha256', WEBHOOK_SECRET)
-            .update(rawBody) // Use rawBody directly, no encoding specified
-            .digest()
+    const receivedBuffer = Buffer.from(signature.trim(), 'base64')
 
-        // Decode received signature from Base64
-        const receivedBuffer = Buffer.from(signature.trim(), 'base64')
-
-        // Log for debugging
-        const expectedBase64 = expectedBuffer.toString('base64')
-        console.log('[Webhook] Expected signature:', expectedBase64)
-        console.log('[Webhook] Received signature:', signature.trim())
-        console.log('[Webhook] Buffer lengths - Expected:', expectedBuffer.length, 'Received:', receivedBuffer.length)
-
-        // Validate buffer lengths (must be 32 bytes for SHA256)
-        if (receivedBuffer.length !== 32 || expectedBuffer.length !== 32) {
-            console.error('[Webhook] Invalid buffer length!')
-            return NextResponse.json({ error: 'Invalid signature format' }, { status: 401 })
-        }
-
-        // Timing-safe comparison
-        const isValid = crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
-
-        if (!isValid) {
-            console.error('[Webhook] Signature MISMATCH!')
-            console.error('[Webhook] Check: Is ABACATEPAY_WEBHOOK_SECRET the "Secret" from AbacatePay webhook config (NOT the API Key)?')
-            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-        }
-
-        console.log('[Webhook] Signature VALID!')
-    } catch (err) {
-        console.error('[Webhook] Signature verification error:', err)
-        return NextResponse.json({ error: 'Signature error' }, { status: 401 })
+    if (receivedBuffer.length !== 32) {
+        console.error('[Webhook] Invalid received signature length:', receivedBuffer.length)
+        return NextResponse.json({ error: 'Invalid signature format' }, { status: 401 })
     }
+
+    // Try different secret formats
+    const secretFormats = [
+        { name: 'plain', key: WEBHOOK_SECRET },
+        { name: 'hex-decoded', key: Buffer.from(WEBHOOK_SECRET, 'hex') },
+        { name: 'base64-decoded', key: Buffer.from(WEBHOOK_SECRET, 'base64') },
+    ]
+
+    let isValid = false
+    let matchedFormat = ''
+
+    for (const format of secretFormats) {
+        try {
+            const expectedBuffer = crypto
+                .createHmac('sha256', format.key)
+                .update(rawBody)
+                .digest()
+
+            console.log(`[Webhook] Trying ${format.name}:`, expectedBuffer.toString('base64'))
+
+            if (expectedBuffer.length === 32 &&
+                crypto.timingSafeEqual(expectedBuffer, receivedBuffer)) {
+                isValid = true
+                matchedFormat = format.name
+                break
+            }
+        } catch (err) {
+            console.log(`[Webhook] Format ${format.name} failed:`, err)
+        }
+    }
+
+    console.log('[Webhook] Received signature:', signature.trim())
+
+    if (!isValid) {
+        console.error('[Webhook] Signature MISMATCH with all formats!')
+        console.error('[Webhook] Secret length:', WEBHOOK_SECRET.length)
+        console.error('[Webhook] Secret preview:', WEBHOOK_SECRET.substring(0, 8) + '...')
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+    }
+
+    console.log(`[Webhook] Signature VALID! (format: ${matchedFormat})`)
 
     // ============================================================
     // STEP 5: Parse body and process payment
