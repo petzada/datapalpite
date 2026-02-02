@@ -40,55 +40,45 @@ ${Object.entries(COMPETITION_CODES).map(([code, name]) => `- ${code}: ${name}`).
 - "Quem são os artilheiros da La Liga?"
 - "Quais foram os últimos resultados da Champions League?"`;
 
+// Endpoint de diagnóstico para verificar chaves (Apenas GET)
+export async function GET() {
+    const googleKey = !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const footballKey = !!process.env.FOOTBALL_DATA_API_KEY;
+
+    return new Response(JSON.stringify({
+        status: "Diagnostic",
+        env: {
+            GOOGLE_AI: googleKey ? "Configurada (OK)" : "AUSENTE ❌",
+            FOOTBALL_DATA: footballKey ? "Configurada (OK)" : "AUSENTE ❌",
+        },
+        timestamp: new Date().toISOString()
+    }), {
+        headers: { "Content-Type": "application/json" }
+    });
+}
+
+// Handler Principal do Chat
 export async function POST(req: Request) {
-    // Verificar chaves de API antes de iniciar (log apenas no servidor)
+    // Verificar chaves de API
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-        console.error("[Chat API] GOOGLE_GENERATIVE_AI_API_KEY não configurada");
-        return new Response(
-            JSON.stringify({ error: GENERIC_ERROR }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Ambiente: Chave Google AI não encontrada" }), { status: 500 });
     }
     if (!process.env.FOOTBALL_DATA_API_KEY) {
-        console.error("[Chat API] FOOTBALL_DATA_API_KEY não configurada");
-        return new Response(
-            JSON.stringify({ error: GENERIC_ERROR }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Ambiente: Chave Football Data não encontrada" }), { status: 500 });
     }
 
     try {
         const body = await req.json();
         const { messages } = body;
 
-        // Validar entrada
-        if (!messages || !Array.isArray(messages)) {
-            console.error("[Chat API] Mensagens inválidas recebidas");
-            return new Response(
-                JSON.stringify({ error: GENERIC_ERROR }),
-                { status: 400, headers: { "Content-Type": "application/json" } }
-            );
-        }
-
         // Converter UIMessages para ModelMessages
         const modelMessages = await convertToModelMessages(messages);
-
-        // Log apenas no servidor (não expor ao cliente)
-        if (process.env.NODE_ENV === "development") {
-            console.log("[Chat API] Processando", modelMessages.length, "mensagens");
-        }
 
         const result = streamText({
             model: google("gemini-1.5-flash"),
             system: SYSTEM_PROMPT,
             messages: modelMessages,
             stopWhen: stepCountIs(5),
-            // Log de debug apenas em desenvolvimento
-            onStepFinish: (stepResult) => {
-                if (process.env.NODE_ENV === "development") {
-                    console.log("[Chat API] Step concluído:", Object.keys(stepResult).join(", "));
-                }
-            },
             tools: {
                 getStandings: {
                     description: "Obtém a tabela de classificação atual de uma liga de futebol. Use códigos como: BSA (Brasileirão), PL (Premier League), PD (La Liga), CL (Champions League)",
@@ -96,9 +86,6 @@ export async function POST(req: Request) {
                         competitionCode: z.string().describe("Código da liga (ex: BSA, PL, PD, CL)"),
                     }),
                     execute: async ({ competitionCode }) => {
-                        if (process.env.NODE_ENV === "development") {
-                            console.log("[Tool] getStandings:", competitionCode);
-                        }
                         try {
                             return await getStandings(competitionCode.toUpperCase());
                         } catch (error) {
@@ -115,9 +102,6 @@ export async function POST(req: Request) {
                         limit: z.number().optional().describe("Quantidade de jogos (padrão: 10)"),
                     }),
                     execute: async ({ competitionCode, limit = 10 }) => {
-                        if (process.env.NODE_ENV === "development") {
-                            console.log("[Tool] getUpcomingMatches:", competitionCode, limit);
-                        }
                         try {
                             return await getMatches(competitionCode.toUpperCase(), "SCHEDULED", limit);
                         } catch (error) {
@@ -134,9 +118,6 @@ export async function POST(req: Request) {
                         limit: z.number().optional().describe("Quantidade de jogos (padrão: 10)"),
                     }),
                     execute: async ({ competitionCode, limit = 10 }) => {
-                        if (process.env.NODE_ENV === "development") {
-                            console.log("[Tool] getRecentResults:", competitionCode, limit);
-                        }
                         try {
                             return await getMatches(competitionCode.toUpperCase(), "FINISHED", limit);
                         } catch (error) {
@@ -153,9 +134,6 @@ export async function POST(req: Request) {
                         limit: z.number().optional().describe("Quantidade de jogadores (padrão: 10)"),
                     }),
                     execute: async ({ competitionCode, limit = 10 }) => {
-                        if (process.env.NODE_ENV === "development") {
-                            console.log("[Tool] getTopScorers:", competitionCode, limit);
-                        }
                         try {
                             return await getScorers(competitionCode.toUpperCase(), limit);
                         } catch (error) {
@@ -167,21 +145,23 @@ export async function POST(req: Request) {
             },
         });
 
-        // @ts-expect-error - Type definition mismatch in current SDK version
+        // @ts-expect-error - Type definition compatibility
         return result.toDataStreamResponse({
             getErrorMessage: (error: any) => {
-                // Não expor detalhes de erro no cliente
+                // EXPOR ERRO PARA DEBUG (Temporário)
                 console.error("[Chat API] Erro no stream:", error);
-                return GENERIC_ERROR;
+                return error instanceof Error ? error.message : String(error);
             }
         });
-    } catch (error) {
-        // Log detalhado apenas no servidor
+    } catch (error: any) {
         console.error("[Chat API] Erro interno:", error);
-
-        // Retornar mensagem genérica ao cliente
+        // EXPOR ERRO PARA DEBUG (Temporário)
         return new Response(
-            JSON.stringify({ error: GENERIC_ERROR }),
+            JSON.stringify({
+                error: "Erro Interno do Servidor",
+                details: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined
+            }),
             { status: 500, headers: { "Content-Type": "application/json" } }
         );
     }
