@@ -4,7 +4,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 // Configuracao do remetente
 // Em producao, altere para seu dominio verificado (ex: contato@datapalpite.com)
-const FROM_EMAIL = 'Data Palpite <onboarding@resend.dev>'
+const FROM_EMAIL = 'Data Palpite <suporte@datapalpite.com.br>'
 
 // Template base para todos os e-mails
 function getEmailTemplate(content: string): string {
