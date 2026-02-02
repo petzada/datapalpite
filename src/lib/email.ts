@@ -1,10 +1,21 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 // Configuracao do remetente
-// Em producao, altere para seu dominio verificado (ex: contato@datapalpite.com)
 const FROM_EMAIL = 'Data Palpite <suporte@datapalpite.com.br>'
+
+// Inicializacao lazy do cliente Resend para evitar erro durante build
+let resendClient: Resend | null = null
+
+function getResendClient(): Resend {
+    if (!resendClient) {
+        const apiKey = process.env.RESEND_API_KEY
+        if (!apiKey) {
+            throw new Error('RESEND_API_KEY não configurada')
+        }
+        resendClient = new Resend(apiKey)
+    }
+    return resendClient
+}
 
 // Template base para todos os e-mails
 function getEmailTemplate(content: string): string {
@@ -92,6 +103,7 @@ export async function sendWelcomeEmail(email: string, name: string) {
     `
 
     try {
+        const resend = getResendClient()
         const { data, error } = await resend.emails.send({
             from: FROM_EMAIL,
             to: [email],
@@ -125,6 +137,7 @@ export async function sendEmail({
     content: string
 }) {
     try {
+        const resend = getResendClient()
         const { data, error } = await resend.emails.send({
             from: FROM_EMAIL,
             to: [to],
