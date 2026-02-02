@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, LogOut, Wallet, Target, Calculator } from "lucide-react";
+import { LayoutDashboard, LogOut, Wallet, Target, Calculator, Bot } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ const menuItems = [
         section: "Ferramentas",
         items: [
             { name: "Calculadora EV", href: "/dashboard/calculadora-ev", icon: Calculator },
+            { name: "Consulta IA", href: "/dashboard/consulta-ia", icon: Bot },
         ],
     },
 ];

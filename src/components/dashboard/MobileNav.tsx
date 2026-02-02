@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Menu, X, Settings, LogOut, User, Wallet, Target, Calculator } from "lucide-react";
+import { Home, Menu, X, Settings, LogOut, User, Wallet, Target, Calculator, Bot } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,6 +22,7 @@ const bottomNavItems = [
     { name: "Bancas", href: "/dashboard/bancas", icon: Wallet },
     { name: "Apostas", href: "/dashboard/apostas", icon: Target },
     { name: "EV+", href: "/dashboard/calculadora-ev", icon: Calculator },
+    { name: "IA", href: "/dashboard/consulta-ia", icon: Bot },
 ];
 
 export function MobileNav({ user }: MobileNavProps) {
@@ -128,13 +129,13 @@ export function MobileNav({ user }: MobileNavProps) {
                         <Link
                             key={item.name}
                             href={item.href}
-                            className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors ${isActive
+                            className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors ${isActive
                                 ? "text-primary"
                                 : "text-muted-foreground hover:text-foreground"
                                 }`}
                         >
                             <Icon className="w-5 h-5" />
-                            <span className="text-xs font-medium">{item.name}</span>
+                            <span className="text-[10px] font-medium">{item.name}</span>
                         </Link>
                     );
                 })}
