@@ -30,12 +30,23 @@ export function AiChat() {
 
     const isLoading = status === "streaming" || status === "submitted";
 
-    // Log de erro para debug
+    // Debug logs
     useEffect(() => {
-        if (error) {
-            console.error("Erro no chat:", error);
+        console.log("=== Chat Debug ===");
+        console.log("Status:", status);
+        console.log("Messages:", messages);
+        console.log("Error:", error);
+        if (messages.length > 0) {
+            messages.forEach((msg, i) => {
+                console.log(`Message ${i}:`, {
+                    id: msg.id,
+                    role: msg.role,
+                    parts: msg.parts,
+                    fullMessage: msg
+                });
+            });
         }
-    }, [error]);
+    }, [messages, status, error]);
 
     // Auto scroll para a última mensagem
     useEffect(() => {

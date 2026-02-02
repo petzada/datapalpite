@@ -1,5 +1,5 @@
 import { google } from "@ai-sdk/google";
-import { streamText, tool, convertToModelMessages } from "ai";
+import { streamText, tool, convertToModelMessages, stepCountIs } from "ai";
 import { z } from "zod";
 import {
     getStandings,
@@ -54,6 +54,8 @@ export async function POST(req: Request) {
             model: google("gemini-2.5-flash"),
             system: SYSTEM_PROMPT,
             messages: modelMessages,
+            // Permitir até 5 passos para tool calling (chamada + resposta)
+            stopWhen: stepCountIs(5),
             tools: {
                 getStandings: tool({
                     description: "Obtém a tabela de classificação atual de uma liga de futebol",
