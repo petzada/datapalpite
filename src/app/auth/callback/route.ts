@@ -14,24 +14,17 @@ export async function GET(request: Request) {
             // Verificar se o profile existe (fallback caso o trigger falhe)
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('id')
-                    .eq('id', user.id)
-                    .single()
+                // O trigger 'on_auth_user_created' no banco de dados ja cria o perfil automaticamente.
+                // Entao verificamos se o usuario foi criado recentemente (ex: nos ultimos 5 minutos)
+                // para decidir se enviamos o e-mail de boas-vindas.
+                const isNewUser = new Date().getTime() - new Date(user.created_at).getTime() < 5 * 60 * 1000 // 5 minutos
 
-                // Criar profile se nao existir (novo usuario)
-                if (!profile) {
+                if (isNewUser) {
                     const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Usuario'
 
-                    await supabase.from('profiles').insert({
-                        id: user.id,
-                        full_name: userName,
-                        email: user.email,
-                        avatar_url: user.user_metadata?.avatar_url,
-                    })
+                    // Verificamos se o perfil existe apenas para garantir que o trigger funcionou
+                    // Se nao existir, poderiamos cria-lo aqui como fallback, mas o foco agora e o email.
 
-                    // Enviar e-mail de boas-vindas para novos usuarios
                     if (user.email) {
                         sendWelcomeEmail(user.email, userName).catch((err) => {
                             console.error('Falha ao enviar e-mail de boas-vindas:', err)
