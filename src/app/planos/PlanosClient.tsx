@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PlanBadge } from "@/components/subscription";
@@ -56,11 +57,10 @@ export function PlanosClient({
 
     const isTrialExpired = currentPlan === "trial" && daysRemaining <= 0;
 
+    const router = useRouter();
+
     const handleSelectPlan = (planId: string) => {
-        // TODO: Integrar com Stripe Checkout
-        alert(
-            `Integração com pagamento em desenvolvimento.\n\nPlano selecionado: ${planId.toUpperCase()}\nEmail: ${userEmail}`
-        );
+        router.push(`/pagamento/${planId}`);
     };
 
     return (
@@ -92,8 +92,8 @@ export function PlanosClient({
                         {isTrialExpired
                             ? "Seu período de teste acabou. Escolha um plano para continuar."
                             : currentPlan === "trial"
-                              ? `Você tem ${daysRemaining} dias restantes no trial. Teste grátis por 7 dias. Cancele quando quiser.`
-                              : "Teste grátis por 7 dias. Cancele quando quiser."}
+                                ? `Você tem ${daysRemaining} dias restantes no trial. Teste grátis por 7 dias. Cancele quando quiser.`
+                                : "Teste grátis por 7 dias. Cancele quando quiser."}
                     </p>
                 </div>
 
@@ -105,11 +105,10 @@ export function PlanosClient({
                         return (
                             <div
                                 key={plan.id}
-                                className={`relative p-6 sm:p-8 rounded-2xl border-2 transition-all ${
-                                    plan.highlighted
-                                        ? "border-primary bg-white shadow-xl"
-                                        : "border-border bg-white hover:border-primary/30"
-                                } ${isCurrentPlan ? "ring-2 ring-emerald-500" : ""}`}
+                                className={`relative p-6 sm:p-8 rounded-2xl border-2 transition-all ${plan.highlighted
+                                    ? "border-primary bg-white shadow-xl"
+                                    : "border-border bg-white hover:border-primary/30"
+                                    } ${isCurrentPlan ? "ring-2 ring-emerald-500" : ""}`}
                             >
                                 {plan.highlighted && (
                                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -151,8 +150,8 @@ export function PlanosClient({
                                     {isCurrentPlan
                                         ? "Plano Atual"
                                         : currentPlan === "pro" && plan.id === "easy"
-                                          ? "Fazer Downgrade"
-                                          : "Comece agora"}
+                                            ? "Fazer Downgrade"
+                                            : "Comece agora"}
                                 </Button>
                             </div>
                         );
