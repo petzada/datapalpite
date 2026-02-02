@@ -10,35 +10,100 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 // For production at scale, use Redis or database table
 const processedBillings = new Set<string>()
 
+/**
+ * Verify webhook signature using HMAC SHA256
+ * Returns true if signature is valid
+ */
+function verifySignature(rawBody: string, signature: string, secret: string): boolean {
+    try {
+        // Generate expected signature
+        const hmac = crypto.createHmac('sha256', secret)
+        const expectedSignature = hmac.update(rawBody, 'utf8').digest('hex')
+
+        // Handle possible prefixes (sha256=, etc.)
+        let cleanSignature = signature.trim()
+        if (cleanSignature.startsWith('sha256=')) {
+            cleanSignature = cleanSignature.slice(7)
+        }
+
+        // Convert to buffers for timing-safe comparison
+        const expectedBuffer = Buffer.from(expectedSignature, 'hex')
+        const receivedBuffer = Buffer.from(cleanSignature, 'hex')
+
+        // Check length first (timingSafeEqual requires same length)
+        if (expectedBuffer.length !== receivedBuffer.length) {
+            console.warn('[Webhook] Signature length mismatch:', {
+                expected: expectedBuffer.length,
+                received: receivedBuffer.length
+            })
+            return false
+        }
+
+        return crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
+    } catch (err) {
+        console.error('[Webhook] Signature verification error:', err)
+        return false
+    }
+}
+
 export async function POST(request: NextRequest) {
     try {
+        // IMPORTANT: Get raw body as text BEFORE any parsing
         const rawBody = await request.text()
-        const signature = request.headers.get('X-Webhook-Signature')
+
+        // Try multiple header name variations (case-insensitive in HTTP, but headers object may vary)
+        const signature = request.headers.get('x-webhook-signature') ||
+            request.headers.get('X-Webhook-Signature') ||
+            request.headers.get('X-WEBHOOK-SIGNATURE')
+
+        // Debug: Log received headers (mask sensitive data)
+        console.log('[Webhook] Request received:', {
+            hasSignature: !!signature,
+            signaturePreview: signature ? `${signature.substring(0, 10)}...` : 'missing',
+            bodyLength: rawBody.length,
+            bodyPreview: rawBody.substring(0, 100)
+        })
 
         // Validate environment variables
-        if (!ABACATEPAY_WEBHOOK_SECRET || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-            console.error('[Webhook] Missing environment variables')
+        if (!ABACATEPAY_WEBHOOK_SECRET) {
+            console.error('[Webhook] ABACATEPAY_WEBHOOK_SECRET is not configured')
             return NextResponse.json({ error: 'Configuration error' }, { status: 500 })
         }
 
+        if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+            console.error('[Webhook] Supabase environment variables missing')
+            return NextResponse.json({ error: 'Configuration error' }, { status: 500 })
+        }
+
+        // Debug: Confirm secret is loaded (masked)
+        console.log('[Webhook] Secret loaded:', {
+            length: ABACATEPAY_WEBHOOK_SECRET.length,
+            preview: `${ABACATEPAY_WEBHOOK_SECRET.substring(0, 4)}...${ABACATEPAY_WEBHOOK_SECRET.slice(-4)}`
+        })
+
         // Validate signature header exists
         if (!signature) {
-            console.warn('[Webhook] Missing X-Webhook-Signature header')
+            console.warn('[Webhook] Missing signature header. Available headers:',
+                Array.from(request.headers.keys()))
             return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
         }
 
-        // Verify HMAC SHA256 signature using timing-safe comparison
-        const hmac = crypto.createHmac('sha256', ABACATEPAY_WEBHOOK_SECRET)
-        const expectedSignature = hmac.update(rawBody).digest('hex')
-
-        const signatureBuffer = Buffer.from(signature)
-        const expectedBuffer = Buffer.from(expectedSignature)
-
-        if (signatureBuffer.length !== expectedBuffer.length ||
-            !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
+        // Verify HMAC SHA256 signature
+        if (!verifySignature(rawBody, signature, ABACATEPAY_WEBHOOK_SECRET)) {
+            // Debug: Generate expected signature for comparison (only in development)
+            if (process.env.NODE_ENV === 'development') {
+                const hmac = crypto.createHmac('sha256', ABACATEPAY_WEBHOOK_SECRET)
+                const expected = hmac.update(rawBody, 'utf8').digest('hex')
+                console.warn('[Webhook] Signature mismatch debug:', {
+                    received: signature,
+                    expected: expected
+                })
+            }
             console.warn('[Webhook] Invalid signature')
             return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
         }
+
+        console.log('[Webhook] Signature verified successfully')
 
         // Parse and validate body
         let body: {
