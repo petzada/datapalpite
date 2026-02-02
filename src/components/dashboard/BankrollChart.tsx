@@ -26,7 +26,7 @@ export function BankrollChart({ data }: BankrollChartProps) {
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="h-[300px] w-full">
+                <div className="h-[250px] lg:h-[300px] w-full">
                     {!hasData ? (
                         <div className="h-full flex items-center justify-center text-muted-foreground">
                             Sem apostas finalizadas para exibir

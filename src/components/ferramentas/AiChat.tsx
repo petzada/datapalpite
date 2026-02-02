@@ -54,7 +54,7 @@ export function AiChat() {
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-220px)] lg:h-[calc(100vh-180px)]">
+        <div className="flex flex-col h-[calc(100vh-280px)] sm:h-[calc(100vh-240px)] lg:h-[calc(100vh-200px)]">
             <Card className="flex-1 mb-4 overflow-hidden">
                 <CardContent className="p-0 h-full">
                     <div className="h-full overflow-y-auto p-4">

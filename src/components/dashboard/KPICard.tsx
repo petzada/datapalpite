@@ -53,7 +53,7 @@ export function KPICard({
                                     <Icon className="w-4 h-4 text-muted-foreground" />
                                 </div>
                             </div>
-                            <p className={cn("text-2xl font-bold", colorClasses[color])}>
+                            <p className={cn("text-lg sm:text-xl lg:text-2xl font-bold truncate", colorClasses[color])}>
                                 {value}
                             </p>
                             {secondaryValue && (

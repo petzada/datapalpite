@@ -178,7 +178,7 @@ export function EvCalculator() {
                         <div className="text-center py-4">
                             <p className="text-sm text-muted-foreground mb-1">Valor Esperado (EV)</p>
                             <p className={cn(
-                                "text-5xl font-bold",
+                                "text-3xl sm:text-4xl lg:text-5xl font-bold",
                                 result.isPositive ? "text-emerald-500" : "text-red-500"
                             )}>
                                 {result.evPercent >= 0 ? "+" : ""}{result.evPercent.toFixed(2)}%
