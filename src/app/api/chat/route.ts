@@ -3,7 +3,7 @@
  * Utiliza Vercel AI SDK v6 + Google Gemini + Football-Data.org
  */
 import { google } from "@ai-sdk/google";
-import { streamText, UIMessage, convertToModelMessages, tool } from "ai";
+import { streamText, UIMessage, convertToModelMessages, tool, stepCountIs } from "ai";
 import { z } from "zod";
 import {
     getStandings,
@@ -34,6 +34,7 @@ const SYSTEM_PROMPT = `Você é um assistente especializado em estatísticas de 
 5. Responda sempre em Português do Brasil.
 6. Seja conciso e formate os dados de forma legível.
 7. Se o usuário perguntar sobre uma competição, converta automaticamente o nome para o código correto.
+8. Após receber os dados da ferramenta, SEMPRE gere uma resposta formatada para o usuário.
 
 ## Códigos das Competições Disponíveis:
 ${Object.entries(COMPETITION_CODES).map(([code, name]) => `- ${code}: ${name}`).join("\n")}
@@ -78,6 +79,9 @@ export async function POST(req: Request) {
             model: google("gemini-2.5-flash-lite"),
             system: SYSTEM_PROMPT,
             messages: await convertToModelMessages(messages),
+            // IMPORTANTE: Permite multi-step tool calls
+            // O modelo pode chamar a tool, receber o resultado e então gerar a resposta
+            stopWhen: stepCountIs(5),
             tools: {
                 getStandings: tool({
                     description: "Obtém a tabela de classificação de uma liga de futebol. Use para perguntas sobre posições, pontos, classificação.",
@@ -87,7 +91,7 @@ export async function POST(req: Request) {
                     execute: async ({ competitionCode }) => {
                         console.log(`[Tool] getStandings chamada: ${competitionCode}`);
                         const result = await getStandings(competitionCode.toUpperCase());
-                        console.log(`[Tool] getStandings resultado:`, JSON.stringify(result).substring(0, 200));
+                        console.log(`[Tool] getStandings resultado:`, JSON.stringify(result).substring(0, 300));
                         return result;
                     },
                 }),
@@ -101,7 +105,7 @@ export async function POST(req: Request) {
                     execute: async ({ competitionCode, limit }) => {
                         console.log(`[Tool] getUpcomingMatches chamada: ${competitionCode}, limit: ${limit}`);
                         const result = await getMatches(competitionCode.toUpperCase(), "SCHEDULED", limit ?? 10);
-                        console.log(`[Tool] getUpcomingMatches resultado:`, JSON.stringify(result).substring(0, 200));
+                        console.log(`[Tool] getUpcomingMatches resultado:`, JSON.stringify(result).substring(0, 300));
                         return result;
                     },
                 }),
@@ -115,7 +119,7 @@ export async function POST(req: Request) {
                     execute: async ({ competitionCode, limit }) => {
                         console.log(`[Tool] getRecentResults chamada: ${competitionCode}, limit: ${limit}`);
                         const result = await getMatches(competitionCode.toUpperCase(), "FINISHED", limit ?? 10);
-                        console.log(`[Tool] getRecentResults resultado:`, JSON.stringify(result).substring(0, 200));
+                        console.log(`[Tool] getRecentResults resultado:`, JSON.stringify(result).substring(0, 300));
                         return result;
                     },
                 }),
@@ -129,7 +133,7 @@ export async function POST(req: Request) {
                     execute: async ({ competitionCode, limit }) => {
                         console.log(`[Tool] getTopScorers chamada: ${competitionCode}, limit: ${limit}`);
                         const result = await getScorers(competitionCode.toUpperCase(), limit ?? 10);
-                        console.log(`[Tool] getTopScorers resultado:`, JSON.stringify(result).substring(0, 200));
+                        console.log(`[Tool] getTopScorers resultado:`, JSON.stringify(result).substring(0, 300));
                         return result;
                     },
                 }),
@@ -142,10 +146,19 @@ export async function POST(req: Request) {
                     execute: async ({ teamId }) => {
                         console.log(`[Tool] getTeamInfo chamada: ${teamId}`);
                         const result = await getTeamInfo(teamId);
-                        console.log(`[Tool] getTeamInfo resultado:`, JSON.stringify(result).substring(0, 200));
+                        console.log(`[Tool] getTeamInfo resultado:`, JSON.stringify(result).substring(0, 300));
                         return result;
                     },
                 }),
+            },
+            // Callback para debug de cada step
+            onStepFinish: ({ toolResults, text }) => {
+                if (toolResults && toolResults.length > 0) {
+                    console.log("[Chat API] Step finalizado com toolResults:", toolResults.length);
+                }
+                if (text) {
+                    console.log("[Chat API] Step finalizado com texto:", text.substring(0, 100));
+                }
             },
         });
 
