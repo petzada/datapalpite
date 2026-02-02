@@ -15,8 +15,15 @@ const SUGGESTED_QUESTIONS = [
     "Últimos resultados da Champions League?",
 ];
 
+// Sugestões para mostrar após erro
+const ERROR_SUGGESTIONS = [
+    "Classificação do Brasileirão",
+    "Próximos jogos da Premier League",
+];
+
 // Helper para extrair texto das partes da mensagem
-function getMessageText(parts: Array<{ type: string; text?: string }>): string {
+function getMessageText(parts: Array<{ type: string; text?: string }> | undefined | null): string {
+    if (!parts || !Array.isArray(parts)) return "";
     return parts
         .filter((part) => part.type === "text" && part.text)
         .map((part) => part.text)
@@ -65,6 +72,12 @@ export function AiChat() {
         setInputValue(question);
     };
 
+    const handleErrorSuggestionClick = (question: string) => {
+        setShowError(false);
+        clearError();
+        setInputValue(question);
+    };
+
     return (
         <div className="flex flex-col h-[calc(100vh-220px)] lg:h-[calc(100vh-180px)]">
             {/* Área de Mensagens */}
@@ -105,7 +118,7 @@ export function AiChat() {
                         ) : (
                             <div className="space-y-4">
                                 {messages.map((message) => {
-                                    const textContent = getMessageText(message.parts as Array<{ type: string; text?: string }>);
+                                    const textContent = getMessageText(message.parts as Array<{ type: string; text?: string }>) || (message as any).content;
                                     if (!textContent) return null;
 
                                     return (
@@ -161,8 +174,26 @@ export function AiChat() {
                                         <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
                                             <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                                         </div>
-                                        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm max-w-[85%]">
-                                            {FRIENDLY_ERROR_MESSAGE}
+                                        <div className="space-y-3 max-w-[85%]">
+                                            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm">
+                                                {FRIENDLY_ERROR_MESSAGE}
+                                            </div>
+                                            {/* Sugestões após erro */}
+                                            <div className="flex flex-wrap gap-2">
+                                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                    <Sparkles className="w-3 h-3" />
+                                                    Tente:
+                                                </span>
+                                                {ERROR_SUGGESTIONS.map((suggestion) => (
+                                                    <button
+                                                        key={suggestion}
+                                                        onClick={() => handleErrorSuggestionClick(suggestion)}
+                                                        className="text-xs px-2 py-1 rounded-md border bg-background hover:bg-muted transition-colors"
+                                                    >
+                                                        {suggestion}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 )}

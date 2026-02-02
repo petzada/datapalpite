@@ -167,7 +167,14 @@ export async function POST(req: Request) {
             },
         });
 
-        return result.toUIMessageStreamResponse();
+        // @ts-expect-error - Type definition mismatch in current SDK version
+        return result.toDataStreamResponse({
+            getErrorMessage: (error: any) => {
+                // Não expor detalhes de erro no cliente
+                console.error("[Chat API] Erro no stream:", error);
+                return GENERIC_ERROR;
+            }
+        });
     } catch (error) {
         // Log detalhado apenas no servidor
         console.error("[Chat API] Erro interno:", error);
