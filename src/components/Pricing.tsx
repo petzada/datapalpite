@@ -5,12 +5,12 @@ import Link from "next/link";
 const plans = [
     {
         name: "Easy",
-        price: "R$ 19,90",
+        price: "R$ 14,90",
         period: "/mês",
         features: [
             "Controle de apenas uma banca",
             "Uma consulta diária com IA",
-            "Calculadora de odds",
+            "Calculadora EV+",
             "Histórico básico",
         ],
         cta: "Comece agora",
@@ -18,15 +18,14 @@ const plans = [
     },
     {
         name: "Pro",
-        price: "R$ 59,90",
+        price: "R$ 39,90",
         period: "/mês",
         features: [
-            "Controle de bancas ilimitadas",
-            "Consultas ilimitadas com IA",
-            "Calculadora de odds avançada",
-            "Histórico de confrontos",
-            "Relatórios personalizados",
-            "Suporte prioritário",
+            "Controle ilimitado de bancas",
+            "Consultas com IA ilimitadas",
+            "Calculadora EV+",
+            "Histórico completo",
+            "Análises de mercado em tempo real",
         ],
         cta: "Comece agora",
         highlighted: true,
@@ -42,7 +41,7 @@ export function Pricing() {
                         Escolha o plano ideal para você
                     </h2>
                     <p className="text-muted-foreground">
-                        Transparência total. Cancele quando quiser.
+                        Teste grátis por 7 dias. Cancele quando quiser.
                     </p>
                 </div>
 

@@ -22,8 +22,8 @@ const features = [
         icon: Globe,
     },
     {
-        title: "Calculadora de Odds",
-        description: "Converta odds e calcule valor esperado com rapidez.",
+        title: "Calculadora EV+",
+        description: "Identifique apostas de valor com vantagem matemática sobre a casa.",
         icon: Calculator,
     },
     {
