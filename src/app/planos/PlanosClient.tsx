@@ -2,28 +2,9 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
 import { PlanBadge } from "@/components/subscription";
 import type { PlanoTier } from "@/lib/subscription";
-import {
-    Check,
-    X,
-    Zap,
-    Crown,
-    ArrowLeft,
-    Clock,
-    Infinity,
-    BarChart3,
-    Bot,
-    Wallet,
-    History,
-} from "lucide-react";
+import { Check, ArrowLeft } from "lucide-react";
 
 interface PlanosClientProps {
     currentPlan: PlanoTier;
@@ -35,40 +16,29 @@ const plans = [
     {
         id: "easy",
         name: "Easy",
-        price: "R$ 29",
-        period: "/mes",
-        description: "Para quem esta comecando nas apostas esportivas",
-        icon: Zap,
-        popular: false,
+        price: "R$ 14,90",
+        period: "/mês",
         features: [
-            { name: "1 Banca", included: true, icon: Wallet },
-            { name: "1 Consulta IA por dia", included: true, icon: Bot },
-            { name: "Calculadora de Odds", included: true, icon: BarChart3 },
-            { name: "Dashboard basico", included: true, icon: BarChart3 },
-            { name: "Historico do dia", included: true, icon: History },
-            { name: "Analise em tempo real", included: false, icon: Clock },
-            { name: "Historico completo", included: false, icon: History },
-            { name: "Bancas ilimitadas", included: false, icon: Infinity },
+            "Controle de apenas uma banca",
+            "Uma consulta diária com IA",
+            "Calculadora EV+",
+            "Histórico básico",
         ],
+        highlighted: false,
     },
     {
         id: "pro",
         name: "Pro",
-        price: "R$ 59",
-        period: "/mes",
-        description: "Para apostadores que levam a serio",
-        icon: Crown,
-        popular: true,
+        price: "R$ 39,90",
+        period: "/mês",
         features: [
-            { name: "Bancas ilimitadas", included: true, icon: Infinity },
-            { name: "Consultas IA ilimitadas", included: true, icon: Bot },
-            { name: "Calculadora de Odds", included: true, icon: BarChart3 },
-            { name: "Dashboard completo", included: true, icon: BarChart3 },
-            { name: "Historico completo", included: true, icon: History },
-            { name: "Analise em tempo real", included: true, icon: Clock },
-            { name: "Suporte prioritario", included: true, icon: Zap },
-            { name: "Exportacao de dados", included: true, icon: BarChart3 },
+            "Controle ilimitado de bancas",
+            "Consultas com IA ilimitadas",
+            "Calculadora EV+",
+            "Histórico completo",
+            "Análises de mercado em tempo real",
         ],
+        highlighted: true,
     },
 ];
 
@@ -88,16 +58,15 @@ export function PlanosClient({
 
     const handleSelectPlan = (planId: string) => {
         // TODO: Integrar com Stripe Checkout
-        // Por enquanto, mostrar alerta
         alert(
-            `Integracao com pagamento em desenvolvimento.\n\nPlano selecionado: ${planId.toUpperCase()}\nEmail: ${userEmail}`
+            `Integração com pagamento em desenvolvimento.\n\nPlano selecionado: ${planId.toUpperCase()}\nEmail: ${userEmail}`
         );
     };
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-muted/30">
             {/* Header */}
-            <header className="border-b">
+            <header className="bg-background border-b">
                 <div className="container mx-auto px-4 py-4">
                     <div className="flex items-center justify-between">
                         <Link
@@ -116,100 +85,84 @@ export function PlanosClient({
             <main className="container mx-auto px-4 py-12">
                 {/* Title */}
                 <div className="text-center mb-12">
-                    <h1 className="text-3xl font-bold mb-4">Escolha seu Plano</h1>
-                    <p className="text-muted-foreground max-w-2xl mx-auto">
+                    <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+                        Escolha o plano ideal para você
+                    </h2>
+                    <p className="text-muted-foreground">
                         {isTrialExpired
-                            ? "Seu periodo de teste acabou. Escolha um plano para continuar usando o Data Palpite."
+                            ? "Seu período de teste acabou. Escolha um plano para continuar."
                             : currentPlan === "trial"
-                              ? `Voce tem ${daysRemaining} dias restantes no seu trial. Escolha um plano para continuar apos o periodo de teste.`
-                              : "Gerencie seu plano de assinatura."}
+                              ? `Você tem ${daysRemaining} dias restantes no trial. Teste grátis por 7 dias. Cancele quando quiser.`
+                              : "Teste grátis por 7 dias. Cancele quando quiser."}
                     </p>
                 </div>
 
                 {/* Plans Grid */}
-                <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
                     {plans.map((plan) => {
                         const isCurrentPlan = currentPlan === plan.id;
-                        const Icon = plan.icon;
 
                         return (
-                            <Card
+                            <div
                                 key={plan.id}
-                                className={`relative ${plan.popular ? "border-primary shadow-lg scale-105" : ""} ${isCurrentPlan ? "ring-2 ring-emerald-500" : ""}`}
+                                className={`relative p-6 sm:p-8 rounded-2xl border-2 transition-all ${
+                                    plan.highlighted
+                                        ? "border-primary bg-white shadow-xl"
+                                        : "border-border bg-white hover:border-primary/30"
+                                } ${isCurrentPlan ? "ring-2 ring-emerald-500" : ""}`}
                             >
-                                {plan.popular && (
+                                {plan.highlighted && (
                                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                        <span className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
-                                            Mais Popular
+                                        <span className="bg-primary text-white text-xs font-semibold px-4 py-1 rounded-full">
+                                            RECOMENDADO
                                         </span>
                                     </div>
                                 )}
                                 {isCurrentPlan && (
                                     <div className="absolute -top-3 right-4">
-                                        <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-medium text-white">
-                                            Plano Atual
+                                        <span className="bg-emerald-500 text-white text-xs font-semibold px-4 py-1 rounded-full">
+                                            PLANO ATUAL
                                         </span>
                                     </div>
                                 )}
 
-                                <CardHeader className="text-center pb-4">
-                                    <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-                                        <Icon className="h-7 w-7" />
-                                    </div>
-                                    <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                                    <CardDescription>{plan.description}</CardDescription>
-                                    <div className="mt-4">
+                                <div className="mb-6">
+                                    <h3 className="text-xl font-semibold mb-2">{plan.name}</h3>
+                                    <div className="flex items-baseline gap-1">
                                         <span className="text-4xl font-bold">{plan.price}</span>
                                         <span className="text-muted-foreground">{plan.period}</span>
                                     </div>
-                                </CardHeader>
+                                </div>
 
-                                <CardContent>
-                                    <ul className="space-y-3 mb-8">
-                                        {plan.features.map((feature) => (
-                                            <li
-                                                key={feature.name}
-                                                className={`flex items-center gap-3 text-sm ${!feature.included ? "text-muted-foreground" : ""}`}
-                                            >
-                                                {feature.included ? (
-                                                    <Check className="h-5 w-5 text-emerald-500 shrink-0" />
-                                                ) : (
-                                                    <X className="h-5 w-5 text-muted-foreground/50 shrink-0" />
-                                                )}
-                                                <span>{feature.name}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
+                                <ul className="space-y-3 mb-8">
+                                    {plan.features.map((feature, i) => (
+                                        <li key={i} className="flex items-start gap-3">
+                                            <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                                            <span className="text-sm text-muted-foreground">{feature}</span>
+                                        </li>
+                                    ))}
+                                </ul>
 
-                                    <Button
-                                        onClick={() => handleSelectPlan(plan.id)}
-                                        className="w-full"
-                                        variant={plan.popular ? "default" : "outline"}
-                                        disabled={isCurrentPlan}
-                                    >
-                                        {isCurrentPlan
-                                            ? "Plano Atual"
-                                            : currentPlan === "pro" && plan.id === "easy"
-                                              ? "Fazer Downgrade"
-                                              : "Assinar Agora"}
-                                    </Button>
-                                </CardContent>
-                            </Card>
+                                <Button
+                                    onClick={() => handleSelectPlan(plan.id)}
+                                    className="w-full rounded-full h-12"
+                                    disabled={isCurrentPlan}
+                                >
+                                    {isCurrentPlan
+                                        ? "Plano Atual"
+                                        : currentPlan === "pro" && plan.id === "easy"
+                                          ? "Fazer Downgrade"
+                                          : "Comece agora"}
+                                </Button>
+                            </div>
                         );
                     })}
                 </div>
 
-                {/* FAQ or Additional Info */}
-                <div className="mt-16 text-center">
+                {/* Additional Info */}
+                <div className="mt-12 text-center">
                     <p className="text-sm text-muted-foreground">
-                        Todos os planos incluem 7 dias de garantia. Cancele a qualquer
-                        momento.
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                        Duvidas?{" "}
-                        <Link href="/contato" className="text-primary hover:underline">
-                            Entre em contato
-                        </Link>
+                        Todos os planos incluem 7 dias de garantia. Cancele a qualquer momento.
                     </p>
                 </div>
             </main>

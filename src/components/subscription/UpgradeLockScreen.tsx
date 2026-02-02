@@ -2,9 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
-import { Lock, Zap, Crown, LogOut, Check } from 'lucide-react'
+import { Lock, LogOut, Check } from 'lucide-react'
 
 interface UpgradeLockScreenProps {
     reason: 'trial_expired' | 'subscription_expired'
@@ -12,37 +11,31 @@ interface UpgradeLockScreenProps {
 
 const plans = [
     {
+        id: 'easy',
         name: 'Easy',
-        price: 'R$ 29',
-        period: '/mes',
-        description: 'Para quem esta comecando',
+        price: 'R$ 14,90',
+        period: '/mês',
         features: [
-            '1 Banca',
-            '1 Consulta IA por dia',
-            'Calculadora de Odds',
-            'Dashboard basico',
-            'Historico do dia',
+            'Controle de apenas uma banca',
+            'Uma consulta diária com IA',
+            'Calculadora EV+',
+            'Histórico básico',
         ],
-        icon: Zap,
-        popular: false,
-        priceId: 'price_easy',
+        highlighted: false,
     },
     {
+        id: 'pro',
         name: 'Pro',
-        price: 'R$ 59',
-        period: '/mes',
-        description: 'Para apostadores serios',
+        price: 'R$ 39,90',
+        period: '/mês',
         features: [
-            'Bancas ilimitadas',
-            'Consultas IA ilimitadas',
-            'Analise em tempo real',
-            'Dashboard completo',
-            'Historico completo',
-            'Suporte prioritario',
+            'Controle ilimitado de bancas',
+            'Consultas com IA ilimitadas',
+            'Calculadora EV+',
+            'Histórico completo',
+            'Análises de mercado em tempo real',
         ],
-        icon: Crown,
-        popular: true,
-        priceId: 'price_pro',
+        highlighted: true,
     },
 ]
 
@@ -55,8 +48,8 @@ export function UpgradeLockScreen({ reason }: UpgradeLockScreenProps) {
         router.push('/login')
     }
 
-    const handleSelectPlan = (planName: string) => {
-        router.push(`/planos?plan=${planName.toLowerCase()}`)
+    const handleSelectPlan = (planId: string) => {
+        router.push(`/planos?plan=${planId}`)
     }
 
     return (
@@ -71,7 +64,7 @@ export function UpgradeLockScreen({ reason }: UpgradeLockScreenProps) {
                         </div>
                         <h1 className="mb-2 text-2xl font-bold">
                             {reason === 'trial_expired'
-                                ? 'Seu periodo de teste acabou'
+                                ? 'Seu período de teste acabou'
                                 : 'Sua assinatura expirou'}
                         </h1>
                         <p className="text-muted-foreground text-sm">
@@ -83,58 +76,47 @@ export function UpgradeLockScreen({ reason }: UpgradeLockScreenProps) {
                     {/* Plans Grid */}
                     <div className="mb-6 grid gap-4 sm:grid-cols-2">
                         {plans.map((plan) => (
-                            <Card
-                                key={plan.name}
-                                className={`relative ${plan.popular ? 'border-primary shadow-md ring-1 ring-primary/20' : 'border-border'}`}
+                            <div
+                                key={plan.id}
+                                className={`relative p-5 rounded-2xl border-2 transition-all ${
+                                    plan.highlighted
+                                        ? 'border-primary bg-white shadow-lg'
+                                        : 'border-border bg-white hover:border-primary/30'
+                                }`}
                             >
-                                {plan.popular && (
+                                {plan.highlighted && (
                                     <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
-                                        <span className="rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-medium text-primary-foreground">
-                                            Mais Popular
+                                        <span className="bg-primary text-white text-[10px] font-semibold px-3 py-0.5 rounded-full">
+                                            RECOMENDADO
                                         </span>
                                     </div>
                                 )}
-                                <CardHeader className="text-center pb-3 pt-5">
-                                    <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                                        <plan.icon className="h-5 w-5" />
+
+                                <div className="mb-4">
+                                    <h3 className="text-lg font-semibold mb-1">{plan.name}</h3>
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-2xl font-bold">{plan.price}</span>
+                                        <span className="text-muted-foreground text-sm">{plan.period}</span>
                                     </div>
-                                    <CardTitle className="text-lg">
-                                        {plan.name}
-                                    </CardTitle>
-                                    <CardDescription className="text-xs">
-                                        {plan.description}
-                                    </CardDescription>
-                                    <div className="mt-1">
-                                        <span className="text-2xl font-bold">
-                                            {plan.price}
-                                        </span>
-                                        <span className="text-muted-foreground text-sm">
-                                            {plan.period}
-                                        </span>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="pt-0">
-                                    <ul className="mb-4 space-y-1.5">
-                                        {plan.features.map((feature) => (
-                                            <li
-                                                key={feature}
-                                                className="flex items-center gap-2 text-xs"
-                                            >
-                                                <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                                                <span>{feature}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                    <Button
-                                        onClick={() => handleSelectPlan(plan.name)}
-                                        className="w-full"
-                                        size="sm"
-                                        variant={plan.popular ? 'default' : 'outline'}
-                                    >
-                                        Escolher {plan.name}
-                                    </Button>
-                                </CardContent>
-                            </Card>
+                                </div>
+
+                                <ul className="space-y-2 mb-5">
+                                    {plan.features.map((feature, i) => (
+                                        <li key={i} className="flex items-start gap-2 text-xs">
+                                            <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                            <span className="text-muted-foreground">{feature}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+
+                                <Button
+                                    onClick={() => handleSelectPlan(plan.id)}
+                                    className="w-full rounded-full"
+                                    size="sm"
+                                >
+                                    Comece agora
+                                </Button>
+                            </div>
                         ))}
                     </div>
 
