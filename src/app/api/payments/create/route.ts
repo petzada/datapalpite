@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
                 customer: {
                     name: user.user_metadata?.name || 'Cliente',
                     email: user.email,
+                    cellphone: user.user_metadata?.cellphone || '11999999999',
                     taxId: user.user_metadata?.taxId || '00000000000' // Validação necessária em produção
                 },
                 metadata: {
