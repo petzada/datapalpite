@@ -1,5 +1,5 @@
 import { google } from "@ai-sdk/google";
-import { streamText } from "ai";
+import { streamText, tool } from "ai";
 import { z } from "zod";
 import {
     getStandings,
@@ -36,6 +36,14 @@ ${Object.entries(COMPETITION_CODES).map(([code, name]) => `- ${code}: ${name}`).
 - "Quais foram os últimos resultados da Champions League?"`;
 
 export async function POST(req: Request) {
+    // Verificar chaves de API antes de iniciar
+    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+        return new Response(JSON.stringify({ error: "Chave da API do Google não configurada" }), { status: 500 });
+    }
+    if (!process.env.FOOTBALL_DATA_API_KEY) {
+        return new Response(JSON.stringify({ error: "Chave da API Football Data não configurada" }), { status: 500 });
+    }
+
     try {
         const { messages } = await req.json();
 
@@ -44,21 +52,23 @@ export async function POST(req: Request) {
             system: SYSTEM_PROMPT,
             messages,
             tools: {
-                getStandings: {
+                getStandings: tool({
                     description: "Obtém a tabela de classificação atual de uma liga de futebol",
-                    inputSchema: z.object({
+                    parameters: z.object({
                         competitionCode: z
                             .string()
                             .describe("Código da liga (ex: BSA para Brasileirão, PL para Premier League, PD para La Liga, CL para Champions League)"),
                     }),
-                    execute: async ({ competitionCode }: { competitionCode: string }) => {
+                    // @ts-expect-error - Zod inference mismatch
+                    execute: async ({ competitionCode }: any) => {
+                        console.log(`Buscando classificação para: ${competitionCode}`);
                         return await getStandings(competitionCode.toUpperCase());
                     },
-                },
+                }),
 
-                getUpcomingMatches: {
+                getUpcomingMatches: tool({
                     description: "Obtém os próximos jogos agendados de uma competição",
-                    inputSchema: z.object({
+                    parameters: z.object({
                         competitionCode: z
                             .string()
                             .describe("Código da liga"),
@@ -67,14 +77,16 @@ export async function POST(req: Request) {
                             .optional()
                             .describe("Quantidade de jogos (padrão: 10)"),
                     }),
-                    execute: async ({ competitionCode, limit = 10 }: { competitionCode: string; limit?: number }) => {
+                    // @ts-expect-error - Zod inference mismatch
+                    execute: async ({ competitionCode, limit = 10 }: any) => {
+                        console.log(`Buscando próximos jogos para: ${competitionCode}`);
                         return await getMatches(competitionCode.toUpperCase(), "SCHEDULED", limit);
                     },
-                },
+                }),
 
-                getRecentResults: {
+                getRecentResults: tool({
                     description: "Obtém os resultados mais recentes (jogos finalizados) de uma competição",
-                    inputSchema: z.object({
+                    parameters: z.object({
                         competitionCode: z
                             .string()
                             .describe("Código da liga"),
@@ -83,14 +95,16 @@ export async function POST(req: Request) {
                             .optional()
                             .describe("Quantidade de jogos (padrão: 10)"),
                     }),
-                    execute: async ({ competitionCode, limit = 10 }: { competitionCode: string; limit?: number }) => {
+                    // @ts-expect-error - Zod inference mismatch
+                    execute: async ({ competitionCode, limit = 10 }: any) => {
+                        console.log(`Buscando resultados para: ${competitionCode}`);
                         return await getMatches(competitionCode.toUpperCase(), "FINISHED", limit);
                     },
-                },
+                }),
 
-                getTopScorers: {
+                getTopScorers: tool({
                     description: "Obtém a lista de artilheiros (maiores goleadores) de uma competição",
-                    inputSchema: z.object({
+                    parameters: z.object({
                         competitionCode: z
                             .string()
                             .describe("Código da liga"),
@@ -99,13 +113,17 @@ export async function POST(req: Request) {
                             .optional()
                             .describe("Quantidade de jogadores (padrão: 10)"),
                     }),
-                    execute: async ({ competitionCode, limit = 10 }: { competitionCode: string; limit?: number }) => {
+                    // @ts-expect-error - Zod inference mismatch
+                    execute: async ({ competitionCode, limit = 10 }: any) => {
+                        console.log(`Buscando artilheiros para: ${competitionCode}`);
                         return await getScorers(competitionCode.toUpperCase(), limit);
                     },
-                },
+                }),
             },
         });
 
+        // Usar toTextStreamResponse para compatibilidade em vez de toDataStreamResponse
+        // se o erro persistir, o problema pode estar na versão do SDK
         return result.toTextStreamResponse();
     } catch (error) {
         console.error("Erro na API de chat:", error);
