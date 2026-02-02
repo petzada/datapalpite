@@ -1,6 +1,8 @@
 "use client";
 
-import { Calendar } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Calendar, CheckCircle2, X } from "lucide-react";
 import {
     Select,
     SelectContent,
@@ -14,19 +16,53 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ userName }: DashboardHeaderProps) {
+    const searchParams = useSearchParams();
+    const [showSuccess, setShowSuccess] = useState(false);
+
+    useEffect(() => {
+        if (searchParams.get('payment') === 'success') {
+            setShowSuccess(true);
+            // Remove query param from URL without refresh
+            window.history.replaceState({}, '', '/dashboard');
+            // Auto-hide after 5 seconds
+            const timer = setTimeout(() => setShowSuccess(false), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [searchParams]);
+
     return (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-            {/* Welcome Message */}
-            <div>
-                <h1 className="text-2xl font-bold text-foreground">
-                    Bem vindo ao seu painel
-                </h1>
-                {userName && (
-                    <p className="text-muted-foreground mt-1">
-                        Olá, {userName}! Veja como estão suas apostas.
-                    </p>
-                )}
-            </div>
+        <>
+            {/* Success Toast */}
+            {showSuccess && (
+                <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 fade-in duration-300">
+                    <div className="bg-green-50 border border-green-200 text-green-800 rounded-lg shadow-lg p-4 flex items-center gap-3 max-w-sm">
+                        <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+                        <div className="flex-1">
+                            <p className="font-semibold text-sm">Pagamento confirmado!</p>
+                            <p className="text-xs text-green-600">Seu plano foi ativado com sucesso.</p>
+                        </div>
+                        <button
+                            onClick={() => setShowSuccess(false)}
+                            className="text-green-600 hover:text-green-800 p-1"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                {/* Welcome Message */}
+                <div>
+                    <h1 className="text-2xl font-bold text-foreground">
+                        Bem vindo ao seu painel
+                    </h1>
+                    {userName && (
+                        <p className="text-muted-foreground mt-1">
+                            Olá, {userName}! Veja como estão suas apostas.
+                        </p>
+                    )}
+                </div>
 
             {/* Filters */}
             <div className="flex items-center gap-3">
@@ -56,6 +92,7 @@ export function DashboardHeader({ userName }: DashboardHeaderProps) {
                     </SelectContent>
                 </Select>
             </div>
-        </div>
+            </div>
+        </>
     );
 }

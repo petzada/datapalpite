@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Loader2, Copy, Check, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Loader2, Copy, Check, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react'
 import Image from 'next/image'
 
 interface PaymentClientProps {
@@ -50,21 +50,23 @@ export function PaymentClient({
 
         const checkStatus = async () => {
             try {
-                const res = await fetch('/api/payments/status')
+                const res = await fetch(`/api/payments/status?planId=${planId}`)
                 if (res.ok) {
                     const data = await res.json()
-                    // If plan matches target and is valid, we are good
-                    if (data.isValid && data.plan === planId) {
+                    // If isPaid is true, payment was confirmed
+                    if (data.isPaid) {
                         setStatus('paid')
-                        setTimeout(() => router.push('/dashboard?payment=success'), 2000)
+                        setTimeout(() => router.push('/dashboard?payment=success'), 2500)
                     }
                 }
             } catch (error) {
-                console.error('Polling error', error)
+                console.error('[Polling] Error checking status:', error)
             }
         }
 
-        const intervalId = setInterval(checkStatus, 5000)
+        // Check immediately, then every 4 seconds
+        checkStatus()
+        const intervalId = setInterval(checkStatus, 4000)
         return () => clearInterval(intervalId)
     }, [planId, status, router])
 
@@ -184,17 +186,45 @@ export function PaymentClient({
                                 </div>
 
                                 <div className="bg-blue-50 text-blue-700 p-4 rounded-lg text-sm mb-6">
-                                    <p className="font-semibold mb-1">Pagamento seguro</p>
-                                    A liberação do seu plano ocorre automaticamente após a confirmação do pagamento.
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <p className="font-semibold">Aguardando pagamento...</p>
+                                    </div>
+                                    <p className="text-blue-600/80">
+                                        A liberação do seu plano ocorre automaticamente após a confirmação.
+                                    </p>
                                 </div>
 
                                 <Button
                                     onClick={() => router.push('/dashboard')}
                                     variant="outline"
-                                    className="w-full"
+                                    className="w-full h-10"
                                 >
-                                    Já fiz o pagamento
+                                    Continuar para o dashboard
                                 </Button>
+                            </div>
+                        )}
+
+                        {status === 'paid' && (
+                            <div className="flex flex-col items-center justify-center py-12">
+                                <div className="relative mb-6">
+                                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center animate-pulse">
+                                        <CheckCircle2 className="w-10 h-10 text-green-600" />
+                                    </div>
+                                    <div className="absolute -top-1 -right-1">
+                                        <Sparkles className="w-6 h-6 text-yellow-500 animate-bounce" />
+                                    </div>
+                                </div>
+                                <h2 className="text-xl font-bold text-green-600 mb-2">
+                                    Pagamento Confirmado!
+                                </h2>
+                                <p className="text-muted-foreground text-center mb-4">
+                                    Seu plano {planName} foi ativado com sucesso.
+                                </p>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span>Redirecionando para o dashboard...</span>
+                                </div>
                             </div>
                         )}
 
