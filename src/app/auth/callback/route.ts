@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { sendWelcomeEmail } from '@/lib/email'
 
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url)
@@ -21,8 +20,6 @@ export async function GET(request: Request) {
                     .eq('id', user.id)
                     .single()
 
-                let shouldSendEmail = false
-
                 if (!profile) {
                     // Cenario 1: Profile nao existe (Trigger falhou ou usuario ja existia sem profile)
                     // Criamos manualmente
@@ -36,7 +33,6 @@ export async function GET(request: Request) {
                     })
 
                     if (!insertError) {
-                        shouldSendEmail = true
                         console.log('Profile criado manualmente no callback')
                     } else {
                         console.error('Erro ao criar profile manualmente:', insertError)
@@ -46,16 +42,8 @@ export async function GET(request: Request) {
                     // Verificamos se e um usuario NOVO (criado nos ultimos 5 minutos) para evitar spam em logins subsequentes
                     const isNewUser = new Date().getTime() - new Date(user.created_at).getTime() < 5 * 60 * 1000 // 5 minutos
                     if (isNewUser) {
-                        shouldSendEmail = true
+                        // No longer sending welcome email
                     }
-                }
-
-                // Enviar e-mail se necessario
-                if (shouldSendEmail && user.email) {
-                    const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Usuario'
-                    sendWelcomeEmail(user.email, userName).catch((err) => {
-                        console.error('Falha ao enviar e-mail de boas-vindas:', err)
-                    })
                 }
             }
 
