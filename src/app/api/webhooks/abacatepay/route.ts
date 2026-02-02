@@ -2,124 +2,96 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
-const ABACATEPAY_WEBHOOK_SECRET = process.env.ABACATEPAY_WEBHOOK_SECRET
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-
 // In-memory cache for processed billing IDs (prevents duplicate processing within same instance)
-// For production at scale, use Redis or database table
 const processedBillings = new Set<string>()
 
-/**
- * Verify webhook signature using HMAC SHA256
- * AbacatePay sends signature in Base64 format
- * Returns true if signature is valid
- */
-function verifySignature(rawBody: string, signature: string, secret: string): boolean {
+export async function POST(request: NextRequest) {
+    // ============================================================
+    // STEP 1: Read raw body IMMEDIATELY - before anything else
+    // This is critical for HMAC verification
+    // ============================================================
+    const rawBody = await request.text()
+
+    // Get signature from header
+    const signature = request.headers.get('x-webhook-signature')
+
+    // Get environment variables
+    const WEBHOOK_SECRET = process.env.ABACATEPAY_WEBHOOK_SECRET
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    // ============================================================
+    // STEP 2: Debug logging
+    // ============================================================
+    console.log('[Webhook] === REQUEST RECEIVED ===')
+    console.log('[Webhook] Body starts with:', rawBody.substring(0, 50))
+    console.log('[Webhook] Body length:', rawBody.length)
+    console.log('[Webhook] Signature received:', signature ? signature.substring(0, 20) + '...' : 'MISSING')
+    console.log('[Webhook] Secret configured:', WEBHOOK_SECRET ? `YES (${WEBHOOK_SECRET.length} chars)` : 'NO')
+
+    // ============================================================
+    // STEP 3: Validate configuration
+    // ============================================================
+    if (!WEBHOOK_SECRET) {
+        console.error('[Webhook] ABACATEPAY_WEBHOOK_SECRET not configured!')
+        return NextResponse.json({ error: 'Config error' }, { status: 500 })
+    }
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+        console.error('[Webhook] Supabase credentials not configured!')
+        return NextResponse.json({ error: 'Config error' }, { status: 500 })
+    }
+
+    if (!signature) {
+        console.error('[Webhook] Missing x-webhook-signature header')
+        return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
+    }
+
+    // ============================================================
+    // STEP 4: Verify HMAC signature
+    // AbacatePay sends signature in Base64 format
+    // ============================================================
     try {
-        // Generate expected signature as raw Buffer (32 bytes for SHA256)
+        // Generate expected signature from raw body (DO NOT modify rawBody!)
         const expectedBuffer = crypto
-            .createHmac('sha256', secret)
-            .update(rawBody, 'utf8')
-            .digest() // Returns Buffer directly (32 bytes)
+            .createHmac('sha256', WEBHOOK_SECRET)
+            .update(rawBody) // Use rawBody directly, no encoding specified
+            .digest()
 
-        // Decode received signature from Base64 to Buffer
-        const cleanSignature = signature.trim()
-        const receivedBuffer = Buffer.from(cleanSignature, 'base64')
+        // Decode received signature from Base64
+        const receivedBuffer = Buffer.from(signature.trim(), 'base64')
 
-        // Debug: Log buffer sizes
-        console.log('[Webhook] Signature buffers:', {
-            expectedLength: expectedBuffer.length,
-            receivedLength: receivedBuffer.length,
-            expectedPreview: expectedBuffer.toString('base64').substring(0, 10),
-            receivedPreview: cleanSignature.substring(0, 10)
-        })
+        // Log for debugging
+        const expectedBase64 = expectedBuffer.toString('base64')
+        console.log('[Webhook] Expected signature:', expectedBase64)
+        console.log('[Webhook] Received signature:', signature.trim())
+        console.log('[Webhook] Buffer lengths - Expected:', expectedBuffer.length, 'Received:', receivedBuffer.length)
 
-        // SHA256 always produces 32 bytes
-        // If received buffer is not 32 bytes, signature format is wrong
-        if (receivedBuffer.length !== 32) {
-            console.warn('[Webhook] Invalid signature length:', {
-                expected: 32,
-                received: receivedBuffer.length,
-                hint: 'Signature should be 32 bytes (Base64 encoded)'
-            })
-            return false
-        }
-
-        // Check length match (should both be 32 bytes)
-        if (expectedBuffer.length !== receivedBuffer.length) {
-            console.warn('[Webhook] Signature length mismatch:', {
-                expected: expectedBuffer.length,
-                received: receivedBuffer.length
-            })
-            return false
+        // Validate buffer lengths (must be 32 bytes for SHA256)
+        if (receivedBuffer.length !== 32 || expectedBuffer.length !== 32) {
+            console.error('[Webhook] Invalid buffer length!')
+            return NextResponse.json({ error: 'Invalid signature format' }, { status: 401 })
         }
 
         // Timing-safe comparison
-        return crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
-    } catch (err) {
-        console.error('[Webhook] Signature verification error:', err)
-        return false
-    }
-}
+        const isValid = crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
 
-export async function POST(request: NextRequest) {
-    try {
-        // IMPORTANT: Get raw body as text BEFORE any parsing
-        const rawBody = await request.text()
-
-        // Try multiple header name variations (case-insensitive in HTTP, but headers object may vary)
-        const signature = request.headers.get('x-webhook-signature') ||
-            request.headers.get('X-Webhook-Signature') ||
-            request.headers.get('X-WEBHOOK-SIGNATURE')
-
-        // Debug: Log received headers (mask sensitive data)
-        console.log('[Webhook] Request received:', {
-            hasSignature: !!signature,
-            signaturePreview: signature ? `${signature.substring(0, 10)}...` : 'missing',
-            bodyLength: rawBody.length,
-            bodyPreview: rawBody.substring(0, 100)
-        })
-
-        // Validate environment variables
-        if (!ABACATEPAY_WEBHOOK_SECRET) {
-            console.error('[Webhook] ABACATEPAY_WEBHOOK_SECRET is not configured')
-            return NextResponse.json({ error: 'Configuration error' }, { status: 500 })
-        }
-
-        if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-            console.error('[Webhook] Supabase environment variables missing')
-            return NextResponse.json({ error: 'Configuration error' }, { status: 500 })
-        }
-
-        // Debug: Confirm secret is loaded (masked)
-        console.log('[Webhook] Secret loaded:', {
-            length: ABACATEPAY_WEBHOOK_SECRET.length,
-            preview: `${ABACATEPAY_WEBHOOK_SECRET.substring(0, 4)}...${ABACATEPAY_WEBHOOK_SECRET.slice(-4)}`
-        })
-
-        // Validate signature header exists
-        if (!signature) {
-            console.warn('[Webhook] Missing signature header. Available headers:',
-                Array.from(request.headers.keys()))
-            return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
-        }
-
-        // Verify HMAC SHA256 signature (Base64 encoded)
-        if (!verifySignature(rawBody, signature, ABACATEPAY_WEBHOOK_SECRET)) {
-            // Debug: Generate expected signature for comparison
-            const expectedBase64 = crypto
-                .createHmac('sha256', ABACATEPAY_WEBHOOK_SECRET)
-                .update(rawBody, 'utf8')
-                .digest('base64')
-            console.warn('[Webhook] Signature mismatch:', {
-                received: signature,
-                expected: expectedBase64
-            })
+        if (!isValid) {
+            console.error('[Webhook] Signature MISMATCH!')
+            console.error('[Webhook] Check: Is ABACATEPAY_WEBHOOK_SECRET the "Secret" from AbacatePay webhook config (NOT the API Key)?')
             return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
         }
 
-        console.log('[Webhook] Signature verified successfully')
+        console.log('[Webhook] Signature VALID!')
+    } catch (err) {
+        console.error('[Webhook] Signature verification error:', err)
+        return NextResponse.json({ error: 'Signature error' }, { status: 401 })
+    }
+
+    // ============================================================
+    // STEP 5: Parse body and process payment
+    // ============================================================
+    try {
 
         // Parse and validate body
         let body: {
