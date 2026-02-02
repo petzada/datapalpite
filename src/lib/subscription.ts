@@ -14,8 +14,6 @@ export interface Profile {
     valid_until: string
     ai_queries_today: number
     last_ai_query_date: string
-    stripe_customer_id: string | null
-    stripe_subscription_id: string | null
     created_at: string
     updated_at: string
 }
