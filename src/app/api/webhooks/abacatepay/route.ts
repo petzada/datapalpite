@@ -2,12 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 
-// Use service role for webhook handling (no user context)
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 interface WebhookPayload {
     event: string
     data: {
@@ -33,6 +27,20 @@ function verifySignature(payload: string, signature: string, secret: string): bo
 
 export async function POST(request: NextRequest) {
     try {
+        // Create Supabase client inside function to avoid build-time initialization
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+        if (!supabaseUrl || !supabaseServiceKey) {
+            console.error('Missing Supabase environment variables')
+            return NextResponse.json(
+                { error: 'Configuração do servidor incompleta' },
+                { status: 500 }
+            )
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
         const rawBody = await request.text()
         const signature = request.headers.get('X-Webhook-Signature')
 
