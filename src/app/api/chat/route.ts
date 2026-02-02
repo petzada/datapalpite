@@ -11,6 +11,9 @@ import {
 // Permitir streams de até 30 segundos
 export const maxDuration = 30;
 
+// Mensagem genérica para erros (sem detalhes técnicos)
+const GENERIC_ERROR = "Não foi possível processar sua solicitação no momento.";
+
 const SYSTEM_PROMPT = `Você é um assistente especializado em estatísticas de futebol da plataforma "Data Palpite".
 
 ## Suas Capacidades:
@@ -25,6 +28,8 @@ const SYSTEM_PROMPT = `Você é um assistente especializado em estatísticas de 
 4. Apresente apenas FATOS e ESTATÍSTICAS de forma neutra.
 5. Responda SEMPRE em Português do Brasil.
 6. Seja conciso e direto nas respostas.
+7. Se o usuário perguntar algo fora do escopo de futebol, educadamente redirecione para estatísticas de futebol.
+8. NUNCA revele informações técnicas, códigos de erro ou detalhes internos do sistema.
 
 ## Códigos das Ligas Disponíveis:
 ${Object.entries(COMPETITION_CODES).map(([code, name]) => `- ${code}: ${name}`).join("\n")}
@@ -36,34 +41,53 @@ ${Object.entries(COMPETITION_CODES).map(([code, name]) => `- ${code}: ${name}`).
 - "Quais foram os últimos resultados da Champions League?"`;
 
 export async function POST(req: Request) {
-    // Verificar chaves de API antes de iniciar
+    // Verificar chaves de API antes de iniciar (log apenas no servidor)
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-        return new Response(JSON.stringify({ error: "Chave da API do Google não configurada" }), { status: 500 });
+        console.error("[Chat API] GOOGLE_GENERATIVE_AI_API_KEY não configurada");
+        return new Response(
+            JSON.stringify({ error: GENERIC_ERROR }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+        );
     }
     if (!process.env.FOOTBALL_DATA_API_KEY) {
-        return new Response(JSON.stringify({ error: "Chave da API Football Data não configurada" }), { status: 500 });
+        console.error("[Chat API] FOOTBALL_DATA_API_KEY não configurada");
+        return new Response(
+            JSON.stringify({ error: GENERIC_ERROR }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+        );
     }
 
     try {
-        const { messages } = await req.json();
+        const body = await req.json();
+        const { messages } = body;
 
-        // Converter UIMessages para ModelMessages (formato esperado pelo streamText)
+        // Validar entrada
+        if (!messages || !Array.isArray(messages)) {
+            console.error("[Chat API] Mensagens inválidas recebidas");
+            return new Response(
+                JSON.stringify({ error: GENERIC_ERROR }),
+                { status: 400, headers: { "Content-Type": "application/json" } }
+            );
+        }
+
+        // Converter UIMessages para ModelMessages
         const modelMessages = await convertToModelMessages(messages);
 
-        console.log("=== Chat API Request ===");
-        console.log("Messages count:", modelMessages.length);
+        // Log apenas no servidor (não expor ao cliente)
+        if (process.env.NODE_ENV === "development") {
+            console.log("[Chat API] Processando", modelMessages.length, "mensagens");
+        }
 
         const result = streamText({
             model: google("gemini-2.5-flash"),
             system: SYSTEM_PROMPT,
             messages: modelMessages,
-            // Permitir até 5 passos para tool calling (chamada + resposta)
             stopWhen: stepCountIs(5),
-            // Callbacks para debug
+            // Log de debug apenas em desenvolvimento
             onStepFinish: (stepResult) => {
-                console.log("=== Step Finished ===");
-                console.log("Step result keys:", Object.keys(stepResult));
-                console.log("Step result:", JSON.stringify(stepResult, null, 2).slice(0, 500));
+                if (process.env.NODE_ENV === "development") {
+                    console.log("[Chat API] Step concluído:", Object.keys(stepResult).join(", "));
+                }
             },
             tools: {
                 getStandings: {
@@ -72,10 +96,15 @@ export async function POST(req: Request) {
                         competitionCode: z.string().describe("Código da liga (ex: BSA, PL, PD, CL)"),
                     }),
                     execute: async ({ competitionCode }) => {
-                        console.log(`[Tool] Buscando classificação para: ${competitionCode}`);
-                        const result = await getStandings(competitionCode.toUpperCase());
-                        console.log(`[Tool] Resultado:`, JSON.stringify(result).slice(0, 200));
-                        return result;
+                        if (process.env.NODE_ENV === "development") {
+                            console.log("[Tool] getStandings:", competitionCode);
+                        }
+                        try {
+                            return await getStandings(competitionCode.toUpperCase());
+                        } catch (error) {
+                            console.error("[Tool] Erro em getStandings:", error);
+                            return { erro: "Dados indisponíveis no momento" };
+                        }
                     },
                 },
 
@@ -86,10 +115,15 @@ export async function POST(req: Request) {
                         limit: z.number().optional().describe("Quantidade de jogos (padrão: 10)"),
                     }),
                     execute: async ({ competitionCode, limit = 10 }) => {
-                        console.log(`[Tool] Buscando próximos jogos para: ${competitionCode}`);
-                        const result = await getMatches(competitionCode.toUpperCase(), "SCHEDULED", limit);
-                        console.log(`[Tool] Resultado:`, JSON.stringify(result).slice(0, 200));
-                        return result;
+                        if (process.env.NODE_ENV === "development") {
+                            console.log("[Tool] getUpcomingMatches:", competitionCode, limit);
+                        }
+                        try {
+                            return await getMatches(competitionCode.toUpperCase(), "SCHEDULED", limit);
+                        } catch (error) {
+                            console.error("[Tool] Erro em getUpcomingMatches:", error);
+                            return { erro: "Dados indisponíveis no momento" };
+                        }
                     },
                 },
 
@@ -100,10 +134,15 @@ export async function POST(req: Request) {
                         limit: z.number().optional().describe("Quantidade de jogos (padrão: 10)"),
                     }),
                     execute: async ({ competitionCode, limit = 10 }) => {
-                        console.log(`[Tool] Buscando resultados para: ${competitionCode}`);
-                        const result = await getMatches(competitionCode.toUpperCase(), "FINISHED", limit);
-                        console.log(`[Tool] Resultado:`, JSON.stringify(result).slice(0, 200));
-                        return result;
+                        if (process.env.NODE_ENV === "development") {
+                            console.log("[Tool] getRecentResults:", competitionCode, limit);
+                        }
+                        try {
+                            return await getMatches(competitionCode.toUpperCase(), "FINISHED", limit);
+                        } catch (error) {
+                            console.error("[Tool] Erro em getRecentResults:", error);
+                            return { erro: "Dados indisponíveis no momento" };
+                        }
                     },
                 },
 
@@ -114,21 +153,28 @@ export async function POST(req: Request) {
                         limit: z.number().optional().describe("Quantidade de jogadores (padrão: 10)"),
                     }),
                     execute: async ({ competitionCode, limit = 10 }) => {
-                        console.log(`[Tool] Buscando artilheiros para: ${competitionCode}`);
-                        const result = await getScorers(competitionCode.toUpperCase(), limit);
-                        console.log(`[Tool] Resultado:`, JSON.stringify(result).slice(0, 200));
-                        return result;
+                        if (process.env.NODE_ENV === "development") {
+                            console.log("[Tool] getTopScorers:", competitionCode, limit);
+                        }
+                        try {
+                            return await getScorers(competitionCode.toUpperCase(), limit);
+                        } catch (error) {
+                            console.error("[Tool] Erro em getTopScorers:", error);
+                            return { erro: "Dados indisponíveis no momento" };
+                        }
                     },
                 },
             },
         });
 
-        // Usar toUIMessageStreamResponse para compatibilidade com useChat v3
         return result.toUIMessageStreamResponse();
     } catch (error) {
-        console.error("Erro na API de chat:", error);
+        // Log detalhado apenas no servidor
+        console.error("[Chat API] Erro interno:", error);
+
+        // Retornar mensagem genérica ao cliente
         return new Response(
-            JSON.stringify({ error: "Erro ao processar a mensagem" }),
+            JSON.stringify({ error: GENERIC_ERROR }),
             { status: 500, headers: { "Content-Type": "application/json" } }
         );
     }

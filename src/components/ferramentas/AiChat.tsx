@@ -5,7 +5,7 @@ import { useRef, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bot, User, Send, Loader2, Sparkles } from "lucide-react";
+import { Bot, User, Send, Loader2, Sparkles, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SUGGESTED_QUESTIONS = [
@@ -23,35 +23,34 @@ function getMessageText(parts: Array<{ type: string; text?: string }>): string {
         .join("");
 }
 
+// Mensagem amigável para o usuário (sem detalhes técnicos)
+const FRIENDLY_ERROR_MESSAGE = "Desculpe, não consegui processar sua pergunta. Por favor, tente novamente ou reformule sua pergunta sobre estatísticas de futebol.";
+
 export function AiChat() {
-    const { messages, status, sendMessage, error } = useChat();
+    const { messages, status, sendMessage, error, clearError } = useChat();
     const [inputValue, setInputValue] = useState("");
+    const [showError, setShowError] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const isLoading = status === "streaming" || status === "submitted";
 
-    // Debug logs
+    // Mostrar erro amigável quando houver erro
     useEffect(() => {
-        console.log("=== Chat Debug ===");
-        console.log("Status:", status);
-        console.log("Messages:", messages);
-        console.log("Error:", error);
-        if (messages.length > 0) {
-            messages.forEach((msg, i) => {
-                console.log(`Message ${i}:`, {
-                    id: msg.id,
-                    role: msg.role,
-                    parts: msg.parts,
-                    fullMessage: msg
-                });
-            });
+        if (error) {
+            setShowError(true);
+            // Auto-esconder erro após 10 segundos
+            const timer = setTimeout(() => {
+                setShowError(false);
+                clearError();
+            }, 10000);
+            return () => clearTimeout(timer);
         }
-    }, [messages, status, error]);
+    }, [error, clearError]);
 
     // Auto scroll para a última mensagem
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
+    }, [messages, showError]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -157,13 +156,13 @@ export function AiChat() {
                                     </div>
                                 )}
 
-                                {error && (
+                                {showError && (
                                     <div className="flex gap-3 justify-start">
-                                        <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                                            <Bot className="w-4 h-4 text-destructive" />
+                                        <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                                            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                                         </div>
-                                        <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                                            Erro ao processar: {error.message || "Tente novamente"}
+                                        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm max-w-[85%]">
+                                            {FRIENDLY_ERROR_MESSAGE}
                                         </div>
                                     </div>
                                 )}
