@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
     Dialog,
     DialogContent,
@@ -14,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createBanca, updateBanca, type Banca } from "@/lib/actions/bancas";
+import { canCreateBancaClient } from "@/lib/subscription-client";
+import { Crown, AlertTriangle } from "lucide-react";
 
 interface BancaFormDialogProps {
     open: boolean;
@@ -25,6 +28,9 @@ export function BancaFormDialog({ open, onOpenChange, banca }: BancaFormDialogPr
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [limitReached, setLimitReached] = useState(false);
+    const [limitMessage, setLimitMessage] = useState<string | null>(null);
+    const [checkingLimit, setCheckingLimit] = useState(false);
 
     const [formData, setFormData] = useState({
         nome: "",
@@ -35,6 +41,20 @@ export function BancaFormDialog({ open, onOpenChange, banca }: BancaFormDialogPr
 
     const isEditing = !!banca;
 
+    // Check if user can create more bancas (only when creating, not editing)
+    useEffect(() => {
+        async function checkLimit() {
+            if (open && !banca) {
+                setCheckingLimit(true);
+                const result = await canCreateBancaClient();
+                setLimitReached(!result.allowed);
+                setLimitMessage(result.reason || null);
+                setCheckingLimit(false);
+            }
+        }
+        checkLimit();
+    }, [open, banca]);
+
     // Reset form when dialog opens/closes or banca changes
     useEffect(() => {
         if (open && banca) {
@@ -44,6 +64,8 @@ export function BancaFormDialog({ open, onOpenChange, banca }: BancaFormDialogPr
                 stake_percentual: banca.stake_percentual?.toString() || "2.00",
                 notas: banca.notas || "",
             });
+            setLimitReached(false);
+            setLimitMessage(null);
         } else if (open && !banca) {
             setFormData({
                 nome: "",
@@ -122,6 +144,50 @@ export function BancaFormDialog({ open, onOpenChange, banca }: BancaFormDialogPr
         } finally {
             setLoading(false);
         }
+    }
+
+    // Show limit reached message
+    if (!isEditing && limitReached && !checkingLimit) {
+        return (
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="w-5 h-5 text-amber-500" />
+                            Limite de Bancas Atingido
+                        </DialogTitle>
+                        <DialogDescription>
+                            {limitMessage}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="py-6 text-center">
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/10">
+                            <Crown className="h-8 w-8 text-amber-500" />
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-4">
+                            Faca upgrade do seu plano para criar bancas ilimitadas e ter acesso a todas as funcionalidades.
+                        </p>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => onOpenChange(false)}
+                        >
+                            Fechar
+                        </Button>
+                        <Button asChild>
+                            <Link href="/planos">
+                                <Crown className="mr-2 h-4 w-4" />
+                                Ver Planos
+                            </Link>
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        );
     }
 
     return (

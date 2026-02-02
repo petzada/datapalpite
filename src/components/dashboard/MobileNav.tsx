@@ -2,18 +2,22 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Menu, X, Settings, LogOut, User, Wallet, Target, Calculator, Bot } from "lucide-react";
+import { Home, Menu, X, Settings, LogOut, User, Wallet, Target, Calculator, Bot, Crown } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
+import { PlanBadge } from "@/components/subscription";
+import type { PlanoTier } from "@/lib/subscription";
 
 interface MobileNavProps {
     user: {
         name: string;
         email: string;
         avatarUrl?: string;
+        plan?: PlanoTier;
+        daysRemaining?: number;
     };
 }
 
@@ -87,17 +91,33 @@ export function MobileNav({ user }: MobileNavProps) {
                                     </p>
                                 </div>
                             </div>
+                            {user.plan && (
+                                <div className="mt-3">
+                                    <PlanBadge
+                                        plan={user.plan}
+                                        daysRemaining={user.daysRemaining}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         {/* Menu Items */}
                         <nav className="p-2">
+                            <Link
+                                href="/planos"
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors"
+                                onClick={() => setMenuOpen(false)}
+                            >
+                                <Crown className="w-5 h-5" />
+                                Planos
+                            </Link>
                             <Link
                                 href="/dashboard/configuracoes"
                                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors"
                                 onClick={() => setMenuOpen(false)}
                             >
                                 <Settings className="w-5 h-5" />
-                                Configurações
+                                Configuracoes
                             </Link>
                             <Link
                                 href="/dashboard/perfil"

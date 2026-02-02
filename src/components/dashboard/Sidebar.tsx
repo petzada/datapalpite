@@ -14,12 +14,16 @@ import {
 } from "@/components/ui/tooltip";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { PlanBadge } from "@/components/subscription";
+import type { PlanoTier } from "@/lib/subscription";
 
 interface SidebarProps {
     user: {
         name: string;
         email: string;
         avatarUrl?: string;
+        plan?: PlanoTier;
+        daysRemaining?: number;
     };
 }
 
@@ -103,6 +107,19 @@ export function Sidebar({ user }: SidebarProps) {
             </nav>
 
             <Separator className="bg-white/20" />
+
+            {/* Plan Badge */}
+            {user.plan && (
+                <div className="px-4 pb-2">
+                    <Link href="/planos" className="block">
+                        <PlanBadge
+                            plan={user.plan}
+                            daysRemaining={user.daysRemaining}
+                            className="w-full justify-center bg-white/10 hover:bg-white/20 transition-colors"
+                        />
+                    </Link>
+                </div>
+            )}
 
             {/* User Menu */}
             <div className="p-4">
