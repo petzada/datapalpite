@@ -70,6 +70,10 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Sanitize data
+        const safeAmount = Math.floor(priceInCents)
+        const safeDescription = `Assinatura ${description}`.slice(0, 37)
+
         // Call AbacatePay API to create Pix QR Code
         const abacateResponse = await fetch(`${ABACATEPAY_API_URL}/pixQrCode/create`, {
             method: 'POST',
@@ -78,14 +82,9 @@ export async function POST(request: NextRequest) {
                 'Authorization': `Bearer ${process.env.ABACATEPAY_API_KEY}`,
             },
             body: JSON.stringify({
-                amount: priceInCents,
-                description: `Assinatura ${description}`,
-                customer: {
-                    name: user.user_metadata?.name || 'Cliente',
-                    email: user.email,
-                    cellphone: user.user_metadata?.cellphone || '11999999999',
-                    taxId: user.user_metadata?.taxId || '00000000000' // Validação necessária em produção
-                },
+                amount: safeAmount,
+                description: safeDescription,
+                expiresIn: 3600, // 1 hour
                 metadata: {
                     userId: user.id,
                     planId,
