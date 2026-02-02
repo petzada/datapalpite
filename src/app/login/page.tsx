@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { createClient } from "@/lib/supabase/client";
+import { Loader2 } from "lucide-react";
 
 function LoginForm() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const initialMode = searchParams.get("mode") === "signup" ? "signup" : "login";
     const [mode, setMode] = useState<"login" | "signup">(initialMode);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     // Update mode when URL changes
     useEffect(() => {
@@ -24,6 +29,9 @@ function LoginForm() {
         } else {
             setMode("login");
         }
+        // Clear messages when mode changes
+        setError(null);
+        setSuccessMessage(null);
     }, [searchParams]);
 
     // Form states for signup
@@ -44,6 +52,8 @@ function LoginForm() {
 
     const handleGoogleLogin = async () => {
         const supabase = createClient()
+        setLoading(true)
+        setError(null)
 
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
@@ -54,28 +64,109 @@ function LoginForm() {
 
         if (error) {
             console.error('Erro no login:', error.message)
-            alert('Erro ao fazer login com Google. Tente novamente.')
+            setError('Erro ao fazer login com Google. Tente novamente.')
+            setLoading(false)
         }
     };
 
-    const handleSignup = (e: React.FormEvent) => {
+    const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!agreedToTerms) {
-            alert("Você precisa concordar com os termos para continuar.");
+            setError("Você precisa concordar com os termos para continuar.");
             return;
         }
-        // TODO: Implement signup with Supabase
-        console.log("Signup:", signupData);
+
+        setLoading(true);
+        setError(null);
+        setSuccessMessage(null);
+
+        const supabase = createClient();
+
+        // Validar senha
+        if (signupData.password.length < 6) {
+            setError("A senha deve ter no mínimo 6 caracteres.");
+            setLoading(false);
+            return;
+        }
+
+        const { data, error } = await supabase.auth.signUp({
+            email: signupData.email,
+            password: signupData.password,
+            options: {
+                emailRedirectTo: `${window.location.origin}/auth/callback`,
+                data: {
+                    full_name: `${signupData.firstName} ${signupData.lastName}`.trim(),
+                    cpf: signupData.cpf,
+                    referral_code: signupData.referralCode || null,
+                }
+            }
+        });
+
+        if (error) {
+            console.error('Erro no cadastro:', error.message);
+            if (error.message.includes('already registered')) {
+                setError('Este e-mail já está cadastrado. Tente fazer login.');
+            } else {
+                setError(error.message || 'Erro ao criar conta. Tente novamente.');
+            }
+            setLoading(false);
+            return;
+        }
+
+        // Verificar se precisa confirmar e-mail
+        if (data.user && !data.session) {
+            setSuccessMessage('Conta criada com sucesso! Verifique seu e-mail para confirmar o cadastro.');
+            setSignupData({
+                firstName: "",
+                lastName: "",
+                email: "",
+                cpf: "",
+                password: "",
+                referralCode: "",
+            });
+        } else if (data.session) {
+            // Login automático (confirmação de e-mail desabilitada)
+            router.push('/dashboard');
+        }
+
+        setLoading(false);
     };
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!agreedToTerms) {
-            alert("Você precisa concordar com os termos para continuar.");
+            setError("Você precisa concordar com os termos para continuar.");
             return;
         }
-        // TODO: Implement login with Supabase
-        console.log("Login:", loginData);
+
+        setLoading(true);
+        setError(null);
+
+        const supabase = createClient();
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: loginData.email,
+            password: loginData.password,
+        });
+
+        if (error) {
+            console.error('Erro no login:', error.message);
+            if (error.message.includes('Invalid login credentials')) {
+                setError('E-mail ou senha incorretos.');
+            } else if (error.message.includes('Email not confirmed')) {
+                setError('E-mail não confirmado. Verifique sua caixa de entrada.');
+            } else {
+                setError(error.message || 'Erro ao fazer login. Tente novamente.');
+            }
+            setLoading(false);
+            return;
+        }
+
+        if (data.session) {
+            router.push('/dashboard');
+        }
+
+        setLoading(false);
     };
 
     // CPF mask function
@@ -94,11 +185,26 @@ function LoginForm() {
                 Data Palpite
             </Link>
 
+            {/* Error Message */}
+            {error && (
+                <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                    {error}
+                </div>
+            )}
+
+            {/* Success Message */}
+            {successMessage && (
+                <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-sm">
+                    {successMessage}
+                </div>
+            )}
+
             {/* Google OAuth Button */}
             <Button
                 variant="outline"
                 className="w-full h-12 mb-6 gap-3 rounded-full"
                 onClick={handleGoogleLogin}
+                disabled={loading}
             >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
@@ -273,9 +379,16 @@ function LoginForm() {
                     <Button
                         type="submit"
                         className="w-full h-12 rounded-full mt-6"
-                        disabled={!agreedToTerms}
+                        disabled={!agreedToTerms || loading}
                     >
-                        Criar conta
+                        {loading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Criando conta...
+                            </>
+                        ) : (
+                            "Criar conta"
+                        )}
                     </Button>
                 </form>
             )}
@@ -338,9 +451,16 @@ function LoginForm() {
                     <Button
                         type="submit"
                         className="w-full h-12 rounded-full mt-6"
-                        disabled={!agreedToTerms}
+                        disabled={!agreedToTerms || loading}
                     >
-                        Entrar
+                        {loading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Entrando...
+                            </>
+                        ) : (
+                            "Entrar"
+                        )}
                     </Button>
 
                     <p className="text-center text-sm text-muted-foreground">
