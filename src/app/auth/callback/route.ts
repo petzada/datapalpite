@@ -14,22 +14,48 @@ export async function GET(request: Request) {
             // Verificar se o profile existe (fallback caso o trigger falhe)
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
-                // O trigger 'on_auth_user_created' no banco de dados ja cria o perfil automaticamente.
-                // Entao verificamos se o usuario foi criado recentemente (ex: nos ultimos 5 minutos)
-                // para decidir se enviamos o e-mail de boas-vindas.
-                const isNewUser = new Date().getTime() - new Date(user.created_at).getTime() < 5 * 60 * 1000 // 5 minutos
+                // Verificar se o profile existe (fallback essencial caso o trigger falhe ou banco esteja inconsistente)
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .eq('id', user.id)
+                    .single()
 
-                if (isNewUser) {
+                let shouldSendEmail = false
+
+                if (!profile) {
+                    // Cenario 1: Profile nao existe (Trigger falhou ou usuario ja existia sem profile)
+                    // Criamos manualmente
                     const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Usuario'
 
-                    // Verificamos se o perfil existe apenas para garantir que o trigger funcionou
-                    // Se nao existir, poderiamos cria-lo aqui como fallback, mas o foco agora e o email.
+                    const { error: insertError } = await supabase.from('profiles').insert({
+                        id: user.id,
+                        full_name: userName,
+                        email: user.email,
+                        avatar_url: user.user_metadata?.avatar_url,
+                    })
 
-                    if (user.email) {
-                        sendWelcomeEmail(user.email, userName).catch((err) => {
-                            console.error('Falha ao enviar e-mail de boas-vindas:', err)
-                        })
+                    if (!insertError) {
+                        shouldSendEmail = true
+                        console.log('Profile criado manualmente no callback')
+                    } else {
+                        console.error('Erro ao criar profile manualmente:', insertError)
                     }
+                } else {
+                    // Cenario 2: Profile ja existe (Trigger funcionou)
+                    // Verificamos se e um usuario NOVO (criado nos ultimos 5 minutos) para evitar spam em logins subsequentes
+                    const isNewUser = new Date().getTime() - new Date(user.created_at).getTime() < 5 * 60 * 1000 // 5 minutos
+                    if (isNewUser) {
+                        shouldSendEmail = true
+                    }
+                }
+
+                // Enviar e-mail se necessario
+                if (shouldSendEmail && user.email) {
+                    const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Usuario'
+                    sendWelcomeEmail(user.email, userName).catch((err) => {
+                        console.error('Falha ao enviar e-mail de boas-vindas:', err)
+                    })
                 }
             }
 
