@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
     // Extract metadata
     const metadata = payload.data?.metadata
     if (!metadata?.userId || !metadata?.planId) {
-        console.error('[Webhook] Missing metadata in payload')
+        console.error('[Webhook] Missing metadata in payload. Full payload:', JSON.stringify(payload, null, 2))
         return NextResponse.json({ error: 'Missing metadata' }, { status: 400 })
     }
 
