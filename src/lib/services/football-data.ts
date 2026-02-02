@@ -54,127 +54,124 @@ async function fetchFootballData({ endpoint, params }: FetchOptions) {
  * Obtém a tabela de classificação de uma competição
  */
 export async function getStandings(competitionCode: string) {
-    try {
-        const data = await fetchFootballData({
-            endpoint: `/competitions/${competitionCode}/standings`,
-        });
+    console.log(`[getStandings] Buscando classificação para: ${competitionCode}`);
 
-        // Simplificar dados para o contexto da IA
-        const standings = data.standings?.[0]?.table?.map((team: {
-            position: number;
-            team: { name: string; shortName: string };
-            playedGames: number;
-            won: number;
-            draw: number;
-            lost: number;
-            points: number;
-            goalsFor: number;
-            goalsAgainst: number;
-            goalDifference: number;
-        }) => ({
-            posicao: team.position,
-            time: team.team.name,
-            sigla: team.team.shortName,
-            jogos: team.playedGames,
-            vitorias: team.won,
-            empates: team.draw,
-            derrotas: team.lost,
-            pontos: team.points,
-            golsPro: team.goalsFor,
-            golsContra: team.goalsAgainst,
-            saldoGols: team.goalDifference,
-        }));
+    const data = await fetchFootballData({
+        endpoint: `/competitions/${competitionCode}/standings`,
+    });
 
-        return {
-            competicao: data.competition?.name,
-            temporada: data.season?.startDate?.slice(0, 4),
-            classificacao: standings || [],
-        };
-    } catch (error) {
-        console.error("Erro ao buscar classificação:", error);
-        return { erro: "Não foi possível obter a classificação. Verifique o código da liga." };
-    }
+    // Simplificar dados para o contexto da IA
+    const standings = data.standings?.[0]?.table?.map((team: {
+        position: number;
+        team: { name: string; shortName: string };
+        playedGames: number;
+        won: number;
+        draw: number;
+        lost: number;
+        points: number;
+        goalsFor: number;
+        goalsAgainst: number;
+        goalDifference: number;
+    }) => ({
+        posicao: team.position,
+        time: team.team.name,
+        sigla: team.team.shortName,
+        jogos: team.playedGames,
+        vitorias: team.won,
+        empates: team.draw,
+        derrotas: team.lost,
+        pontos: team.points,
+        golsPro: team.goalsFor,
+        golsContra: team.goalsAgainst,
+        saldoGols: team.goalDifference,
+    }));
+
+    console.log(`[getStandings] Encontrados ${standings?.length || 0} times`);
+
+    return {
+        competicao: data.competition?.name,
+        temporada: data.season?.startDate?.slice(0, 4),
+        classificacao: standings || [],
+    };
 }
 
 /**
  * Obtém os próximos jogos ou resultados recentes de uma competição
  */
 export async function getMatches(competitionCode: string, status: "SCHEDULED" | "FINISHED" = "SCHEDULED", limit: number = 10) {
-    try {
-        const data = await fetchFootballData({
-            endpoint: `/competitions/${competitionCode}/matches`,
-            params: { status, limit: limit.toString() },
-        });
+    console.log(`[getMatches] Buscando partidas ${status} para: ${competitionCode}`);
 
-        const matches = data.matches?.map((match: {
-            utcDate: string;
-            status: string;
-            matchday: number;
-            homeTeam: { name: string; shortName: string };
-            awayTeam: { name: string; shortName: string };
-            score: {
-                fullTime: { home: number | null; away: number | null };
-            };
-        }) => ({
-            data: new Date(match.utcDate).toLocaleString("pt-BR", {
-                day: "2-digit",
-                month: "2-digit",
-                hour: "2-digit",
-                minute: "2-digit",
-            }),
-            rodada: match.matchday,
-            mandante: match.homeTeam.name,
-            visitante: match.awayTeam.name,
-            placar: match.status === "FINISHED"
-                ? `${match.score.fullTime.home} x ${match.score.fullTime.away}`
-                : "A jogar",
-        }));
+    const data = await fetchFootballData({
+        endpoint: `/competitions/${competitionCode}/matches`,
+        params: { status, limit: limit.toString() },
+    });
 
-        return {
-            competicao: data.competition?.name,
-            tipo: status === "SCHEDULED" ? "Próximos jogos" : "Resultados recentes",
-            partidas: matches || [],
+    const matches = data.matches?.map((match: {
+        utcDate: string;
+        status: string;
+        matchday: number;
+        homeTeam: { name: string; shortName: string };
+        awayTeam: { name: string; shortName: string };
+        score: {
+            fullTime: { home: number | null; away: number | null };
         };
-    } catch (error) {
-        console.error("Erro ao buscar partidas:", error);
-        return { erro: "Não foi possível obter as partidas." };
-    }
+    }) => ({
+        data: new Date(match.utcDate).toLocaleString("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+        }),
+        rodada: match.matchday,
+        mandante: match.homeTeam.name,
+        visitante: match.awayTeam.name,
+        placar: match.status === "FINISHED"
+            ? `${match.score.fullTime.home} x ${match.score.fullTime.away}`
+            : "A jogar",
+    }));
+
+    console.log(`[getMatches] Encontradas ${matches?.length || 0} partidas`);
+
+    return {
+        competicao: data.competition?.name,
+        tipo: status === "SCHEDULED" ? "Próximos jogos" : "Resultados recentes",
+        partidas: matches || [],
+    };
 }
 
 /**
  * Obtém os artilheiros de uma competição
  */
 export async function getScorers(competitionCode: string, limit: number = 10) {
-    try {
-        const data = await fetchFootballData({
-            endpoint: `/competitions/${competitionCode}/scorers`,
-            params: { limit: limit.toString() },
-        });
+    console.log(`[getScorers] Buscando artilheiros para: ${competitionCode}`);
 
-        const scorers = data.scorers?.map((scorer: {
-            player: { name: string; nationality: string };
-            team: { name: string };
-            goals: number;
-            assists: number | null;
-            penalties: number | null;
-        }) => ({
-            jogador: scorer.player.name,
-            nacionalidade: scorer.player.nationality,
-            time: scorer.team.name,
-            gols: scorer.goals,
-            assistencias: scorer.assists || 0,
-            penaltis: scorer.penalties || 0,
-        }));
+    const data = await fetchFootballData({
+        endpoint: `/competitions/${competitionCode}/scorers`,
+        params: { limit: limit.toString() },
+    });
 
-        return {
-            competicao: data.competition?.name,
-            temporada: data.season?.startDate?.slice(0, 4),
-            artilheiros: scorers || [],
-        };
-    } catch (error) {
-        console.error("Erro ao buscar artilheiros:", error);
-        return { erro: "Não foi possível obter os artilheiros." };
-    }
+    const scorers = data.scorers?.map((scorer: {
+        player: { name: string; nationality: string };
+        team: { name: string };
+        goals: number;
+        assists: number | null;
+        penalties: number | null;
+    }) => ({
+        jogador: scorer.player.name,
+        nacionalidade: scorer.player.nationality,
+        time: scorer.team.name,
+        gols: scorer.goals,
+        assistencias: scorer.assists || 0,
+        penaltis: scorer.penalties || 0,
+    }));
+
+    console.log(`[getScorers] Encontrados ${scorers?.length || 0} artilheiros`);
+
+    return {
+        competicao: data.competition?.name,
+        temporada: data.season?.startDate?.slice(0, 4),
+        artilheiros: scorers || [],
+    };
 }
 
 /**

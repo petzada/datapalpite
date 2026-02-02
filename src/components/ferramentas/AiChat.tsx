@@ -10,10 +10,10 @@ import { Bot, User, Send, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SUGGESTED_QUESTIONS = [
-    "Classificação do Brasileirão",
-    "Próximos jogos da Premier League",
-    "Artilheiros da La Liga",
-    "Resultados da Champions",
+    "Qual a classificação do Brasileirão?",
+    "Quais os próximos jogos da Premier League?",
+    "Quem são os artilheiros da La Liga?",
+    "Últimos resultados da Champions League",
 ];
 
 function getMessageText(parts: any): string {
