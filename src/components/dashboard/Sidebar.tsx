@@ -110,12 +110,13 @@ export function Sidebar({ user }: SidebarProps) {
 
             {/* Plan Badge */}
             {user.plan && (
-                <div className="px-4 pb-2">
-                    <Link href="/planos" className="block">
+                <div className="px-4 py-3">
+                    <Link href="/planos" className="block hover:opacity-90 transition-opacity">
                         <PlanBadge
                             plan={user.plan}
                             daysRemaining={user.daysRemaining}
-                            className="w-full justify-center bg-white/10 hover:bg-white/20 transition-colors"
+                            variant="sidebar"
+                            showLabel={true}
                         />
                     </Link>
                 </div>

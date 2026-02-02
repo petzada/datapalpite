@@ -92,7 +92,10 @@ export function MobileNav({ user }: MobileNavProps) {
                                 </div>
                             </div>
                             {user.plan && (
-                                <div className="mt-3">
+                                <div className="mt-3 flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground">
+                                        Plano ativo:
+                                    </span>
                                     <PlanBadge
                                         plan={user.plan}
                                         daysRemaining={user.daysRemaining}
