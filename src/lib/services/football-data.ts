@@ -1,13 +1,3 @@
-/**
- * Service para integração com a API Football-Data.org
- * Documentação: https://www.football-data.org/documentation/api
- * 
- * IMPORTANTE: Esta versão inclui:
- * - Cache via Supabase (TTL 60 min)
- * - Tratamento de rate limit (429)
- * - Tratamento de erros de rede
- */
-
 import { getFromCache, saveToCache, generateCacheKey } from "./cache";
 
 const FOOTBALL_DATA_BASE_URL = "https://api.football-data.org/v4";
@@ -24,35 +14,23 @@ interface ApiResponse {
     [key: string]: unknown;
 }
 
-/**
- * Função central para buscar dados da API com cache e tratamento de erros
- */
 async function fetchFootballData({ endpoint, params }: FetchOptions): Promise<ApiResponse> {
     const apiKey = process.env.FOOTBALL_DATA_API_KEY;
 
-    console.log(`[FootballData] Iniciando fetch: ${endpoint}`);
-    console.log(`[FootballData] API Key configurada: ${!!apiKey}`);
-
     if (!apiKey) {
-        console.error("[FootballData] ERRO: API Key não encontrada");
-        return {
-            erro: "Configuração da API de futebol incompleta. Contate o suporte.",
-        };
+        return { erro: "Configuração da API de futebol incompleta. Contate o suporte." };
     }
 
-    // Verifica cache primeiro
     const cacheKey = generateCacheKey(endpoint, params);
     try {
         const cached = await getFromCache(cacheKey);
         if (cached) {
-            console.log(`[FootballData] Retornando dados do CACHE: ${endpoint}`);
             return cached as ApiResponse;
         }
-    } catch (cacheError) {
-        console.warn("[FootballData] Erro ao verificar cache, continuando com API:", cacheError);
+    } catch {
+        // Se falhar o cache, continua com a API
     }
 
-    // Constrói URL com parâmetros
     const url = new URL(`${FOOTBALL_DATA_BASE_URL}${endpoint}`);
     if (params) {
         Object.entries(params).forEach(([key, value]) => {
@@ -60,64 +38,38 @@ async function fetchFootballData({ endpoint, params }: FetchOptions): Promise<Ap
         });
     }
 
-    console.log(`[FootballData] Chamando API: ${url.toString()}`);
-
     try {
         const response = await fetch(url.toString(), {
             headers: {
                 "X-Auth-Token": apiKey,
                 "Content-Type": "application/json",
             },
-            cache: "no-store", // Cache gerenciado pelo Supabase
+            cache: "no-store",
         });
 
-        // Tratamento específico para rate limit
         if (response.status === 429) {
-            console.error("[FootballData] Rate limit atingido (429)");
             return {
                 erro: "O limite de requisições da API foi atingido. Por favor, aguarde alguns minutos e tente novamente.",
                 rateLimit: true,
             };
         }
 
-        // Tratamento para erros de autenticação
         if (response.status === 403) {
-            console.error("[FootballData] Erro de autenticação (403)");
-            return {
-                erro: "Erro de autenticação com a API. Verifique a configuração.",
-            };
+            return { erro: "Erro de autenticação com a API. Verifique a configuração." };
         }
 
-        // Tratamento para recurso não encontrado
         if (response.status === 404) {
-            console.error(`[FootballData] Recurso não encontrado (404): ${endpoint}`);
-            return {
-                erro: "Competição ou recurso não encontrado. Verifique o código da liga.",
-            };
+            return { erro: "Competição ou recurso não encontrado. Verifique o código da liga." };
         }
 
-        // Outros erros HTTP
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`[FootballData] API Error ${response.status}: ${errorText}`);
-            return {
-                erro: `Erro ao consultar dados de futebol (${response.status}).`,
-                details: errorText,
-            };
+            return { erro: `Erro ao consultar dados de futebol (${response.status}).` };
         }
 
-        // Parse da resposta JSON
         const data = await response.json();
-        console.log(`[FootballData] Resposta recebida com sucesso para: ${endpoint}`);
-
-        // Salva no cache (async, não bloqueia)
-        saveToCache(cacheKey, endpoint, data).catch(err => {
-            console.warn("[FootballData] Erro ao salvar cache:", err);
-        });
-
+        saveToCache(cacheKey, endpoint, data).catch(() => { });
         return data;
-    } catch (err) {
-        console.error(`[FootballData] Network/Fetch Error:`, err);
+    } catch {
         return {
             erro: "Não foi possível conectar à API de futebol. Verifique sua conexão e tente novamente.",
             network: true,
@@ -125,22 +77,13 @@ async function fetchFootballData({ endpoint, params }: FetchOptions): Promise<Ap
     }
 }
 
-/**
- * Obtém a tabela de classificação de uma competição
- */
 export async function getStandings(competitionCode: string) {
-    console.log(`[getStandings] Buscando classificação para: ${competitionCode}`);
-
     const data = await fetchFootballData({
         endpoint: `/competitions/${competitionCode}/standings`,
     });
 
-    // Retorna erro se existir
-    if (data.erro) {
-        return data;
-    }
+    if (data.erro) return data;
 
-    // Simplificar dados para o contexto da IA
     const standingsData = data.standings as Array<{
         table: Array<{
             position: number;
@@ -170,8 +113,6 @@ export async function getStandings(competitionCode: string) {
         saldoGols: team.goalDifference,
     }));
 
-    console.log(`[getStandings] Encontrados ${standings?.length || 0} times`);
-
     const competition = data.competition as { name?: string } | undefined;
     const season = data.season as { startDate?: string } | undefined;
 
@@ -182,25 +123,17 @@ export async function getStandings(competitionCode: string) {
     };
 }
 
-/**
- * Obtém os próximos jogos ou resultados recentes de uma competição
- */
 export async function getMatches(
     competitionCode: string,
     status: "SCHEDULED" | "FINISHED" = "SCHEDULED",
     limit: number = 10
 ) {
-    console.log(`[getMatches] Buscando partidas ${status} para: ${competitionCode}`);
-
     const data = await fetchFootballData({
         endpoint: `/competitions/${competitionCode}/matches`,
         params: { status, limit: limit.toString() },
     });
 
-    // Retorna erro se existir
-    if (data.erro) {
-        return data;
-    }
+    if (data.erro) return data;
 
     const matchesData = data.matches as Array<{
         utcDate: string;
@@ -208,9 +141,7 @@ export async function getMatches(
         matchday: number;
         homeTeam: { name: string; shortName: string };
         awayTeam: { name: string; shortName: string };
-        score: {
-            fullTime: { home: number | null; away: number | null };
-        };
+        score: { fullTime: { home: number | null; away: number | null } };
     }> | undefined;
 
     const matches = matchesData?.map((match) => ({
@@ -229,8 +160,6 @@ export async function getMatches(
             : "A jogar",
     }));
 
-    console.log(`[getMatches] Encontradas ${matches?.length || 0} partidas`);
-
     const competition = data.competition as { name?: string } | undefined;
 
     return {
@@ -240,21 +169,13 @@ export async function getMatches(
     };
 }
 
-/**
- * Obtém os artilheiros de uma competição
- */
 export async function getScorers(competitionCode: string, limit: number = 10) {
-    console.log(`[getScorers] Buscando artilheiros para: ${competitionCode}`);
-
     const data = await fetchFootballData({
         endpoint: `/competitions/${competitionCode}/scorers`,
         params: { limit: limit.toString() },
     });
 
-    // Retorna erro se existir
-    if (data.erro) {
-        return data;
-    }
+    if (data.erro) return data;
 
     const scorersData = data.scorers as Array<{
         player: { name: string; nationality: string };
@@ -273,8 +194,6 @@ export async function getScorers(competitionCode: string, limit: number = 10) {
         penaltis: scorer.penalties || 0,
     }));
 
-    console.log(`[getScorers] Encontrados ${scorers?.length || 0} artilheiros`);
-
     const competition = data.competition as { name?: string } | undefined;
     const season = data.season as { startDate?: string } | undefined;
 
@@ -285,20 +204,10 @@ export async function getScorers(competitionCode: string, limit: number = 10) {
     };
 }
 
-/**
- * Obtém informações de um time específico
- */
 export async function getTeamInfo(teamId: number) {
-    console.log(`[getTeamInfo] Buscando informações do time ID: ${teamId}`);
+    const data = await fetchFootballData({ endpoint: `/teams/${teamId}` });
 
-    const data = await fetchFootballData({
-        endpoint: `/teams/${teamId}`,
-    });
-
-    // Retorna erro se existir
-    if (data.erro) {
-        return data;
-    }
+    if (data.erro) return data;
 
     const runningCompetitions = data.runningCompetitions as Array<{ name: string }> | undefined;
 
@@ -311,9 +220,6 @@ export async function getTeamInfo(teamId: number) {
     };
 }
 
-/**
- * Códigos das principais competições disponíveis
- */
 export const COMPETITION_CODES: Record<string, string> = {
     BSA: "Brasileirão Série A",
     BSB: "Brasileirão Série B",
