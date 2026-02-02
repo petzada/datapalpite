@@ -54,7 +54,7 @@ export function AiChat() {
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-280px)] sm:h-[calc(100vh-240px)] lg:h-[calc(100vh-200px)]">
+        <div className="flex flex-col h-[calc(100vh-280px)] sm:h-[calc(100vh-240px)] lg:h-[600px] xl:h-[700px]">
             <Card className="flex-1 mb-4 overflow-hidden">
                 <CardContent className="p-0 h-full">
                     <div className="h-full overflow-y-auto p-4">
@@ -149,10 +149,10 @@ export function AiChat() {
                     onChange={(e) => setInputValue(e.target.value)}
                     placeholder="Digite sua pergunta sobre futebol..."
                     disabled={isLoading}
-                    className="flex-1 h-11"
+                    className="flex-1 h-12"
                 />
-                <Button type="submit" disabled={isLoading || !inputValue.trim()} size="lg">
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                <Button type="submit" disabled={isLoading || !inputValue.trim()} className="h-12 px-4">
+                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                 </Button>
             </form>
         </div>

@@ -144,7 +144,7 @@ export function MobileNav({ user }: MobileNavProps) {
             )}
 
             {/* Bottom Navigation */}
-            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t h-16 flex items-center justify-around">
+            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t h-16 flex items-center justify-around safe-area-pb">
                 {bottomNavItems.map((item) => {
                     const isActive = pathname === item.href;
                     const Icon = item.icon;
@@ -152,7 +152,7 @@ export function MobileNav({ user }: MobileNavProps) {
                         <Link
                             key={item.name}
                             href={item.href}
-                            className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg transition-colors ${isActive
+                            className={`flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[44px] px-3 py-1.5 rounded-lg transition-colors ${isActive
                                 ? "text-primary"
                                 : "text-muted-foreground hover:text-foreground"
                                 }`}

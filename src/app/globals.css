@@ -113,4 +113,9 @@
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-green-600;
   }
+
+  /* Safe area padding for mobile devices with notch */
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }

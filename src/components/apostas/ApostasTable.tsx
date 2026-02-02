@@ -161,7 +161,7 @@ export function ApostasTable({ apostas, tipo }: ApostasTableProps) {
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-8 w-8"
+                                                                    className="h-9 w-9"
                                                                     onClick={() => setResolving(aposta)}
                                                                 >
                                                                     <Target className="h-4 w-4" />
@@ -175,7 +175,7 @@ export function ApostasTable({ apostas, tipo }: ApostasTableProps) {
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                                                className="h-9 w-9 text-destructive hover:text-destructive"
                                                                 onClick={() => handleDelete(aposta.id)}
                                                             >
                                                                 <Trash2 className="h-4 w-4" />

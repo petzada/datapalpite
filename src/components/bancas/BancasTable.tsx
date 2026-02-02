@@ -85,7 +85,7 @@ export function BancasTable({ bancas }: BancasTableProps) {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8"
+                                                        className="h-9 w-9"
                                                         onClick={() => setEditingBanca(banca)}
                                                     >
                                                         <Pencil className="h-4 w-4" />
@@ -98,7 +98,7 @@ export function BancasTable({ bancas }: BancasTableProps) {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                                        className="h-9 w-9 text-destructive hover:text-destructive"
                                                         onClick={() => setDeletingBanca(banca)}
                                                     >
                                                         <Trash2 className="h-4 w-4" />

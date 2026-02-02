@@ -1,134 +1,88 @@
+
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
+import { createClient } from '@supabase/supabase-js'
 
-interface WebhookPayload {
-    event: string
-    data: {
-        id: string
-        status: string
-        amount: number
-        metadata: {
-            userId: string
-            planId: 'easy' | 'pro'
-        }
-    }
-}
-
-function verifySignature(payload: string, signature: string, secret: string): boolean {
-    const hmac = crypto.createHmac('sha256', secret)
-    hmac.update(payload)
-    const expectedSignature = hmac.digest('hex')
-    return crypto.timingSafeEqual(
-        Buffer.from(signature),
-        Buffer.from(expectedSignature)
-    )
-}
+const ABACATEPAY_WEBHOOK_SECRET = process.env.ABACATEPAY_WEBHOOK_SECRET
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 export async function POST(request: NextRequest) {
     try {
-        // Create Supabase client inside function to avoid build-time initialization
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-        if (!supabaseUrl || !supabaseServiceKey) {
-            console.error('Missing Supabase environment variables')
-            return NextResponse.json(
-                { error: 'Configuração do servidor incompleta' },
-                { status: 500 }
-            )
-        }
-
-        const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
         const rawBody = await request.text()
         const signature = request.headers.get('X-Webhook-Signature')
 
-        // Verify webhook signature if secret is configured
-        const webhookSecret = process.env.ABACATEPAY_WEBHOOK_SECRET
-        if (webhookSecret && signature) {
-            if (!verifySignature(rawBody, signature, webhookSecret)) {
-                console.error('Invalid webhook signature')
-                return NextResponse.json(
-                    { error: 'Assinatura inválida' },
-                    { status: 401 }
-                )
-            }
+        if (!ABACATEPAY_WEBHOOK_SECRET || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+            console.error('Missing env vars')
+            return NextResponse.json({ error: 'Config error' }, { status: 500 })
         }
 
-        const payload: WebhookPayload = JSON.parse(rawBody)
-
-        // Only process billing.paid events
-        if (payload.event !== 'billing.paid') {
-            return NextResponse.json({ received: true, processed: false })
+        if (!signature) {
+            return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
         }
 
-        const { userId, planId } = payload.data.metadata
+        // Verify HMAC
+        const hmac = crypto.createHmac('sha256', ABACATEPAY_WEBHOOK_SECRET)
+        const digest = hmac.update(rawBody).digest('hex')
 
-        if (!userId || !planId) {
-            console.error('Missing metadata in webhook payload')
-            return NextResponse.json(
-                { error: 'Metadata ausente' },
-                { status: 400 }
-            )
+        const signatureBuffer = Buffer.from(signature)
+        const digestBuffer = Buffer.from(digest)
+
+        if (signatureBuffer.length !== digestBuffer.length || !crypto.timingSafeEqual(signatureBuffer, digestBuffer)) {
+            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
         }
 
-        // Get current user profile to check existing valid_until
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('valid_until')
-            .eq('id', userId)
-            .single()
+        // Parse body
+        const body = JSON.parse(rawBody)
 
-        if (profileError) {
-            console.error('Error fetching profile:', profileError)
-            return NextResponse.json(
-                { error: 'Usuário não encontrado' },
-                { status: 404 }
-            )
+        // Return 200 immediately for validation (idempotency/retries)
+        if (body.event !== 'billing.paid') {
+            return NextResponse.json({ received: true })
         }
 
-        // Calculate new valid_until: add 30 days from current date or extend if active
-        const now = new Date()
-        const currentValidUntil = new Date(profile.valid_until)
-        const baseDate = currentValidUntil > now ? currentValidUntil : now
-        const newValidUntil = new Date(baseDate)
-        newValidUntil.setDate(newValidUntil.getDate() + 30)
-
-        // Update user profile with new plan
-        const { error: updateError } = await supabase
-            .from('profiles')
-            .update({
-                plano: planId,
-                status: 'active',
-                valid_until: newValidUntil.toISOString(),
-                updated_at: now.toISOString(),
-            })
-            .eq('id', userId)
-
-        if (updateError) {
-            console.error('Error updating profile:', updateError)
-            return NextResponse.json(
-                { error: 'Erro ao atualizar plano' },
-                { status: 500 }
-            )
+        const metadata = body.data?.metadata
+        if (!metadata?.userId || !metadata?.planId) {
+            console.error('Missing metadata:', body.data)
+            return NextResponse.json({ error: 'Metadata missing' }, { status: 400 })
         }
 
-        console.log(`✅ Payment processed: User ${userId} upgraded to ${planId} until ${newValidUntil.toISOString()}`)
+        const { userId, planId } = metadata
 
-        return NextResponse.json({
-            received: true,
-            processed: true,
-            userId,
-            planId,
-            validUntil: newValidUntil.toISOString(),
+        // Update Supabase
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+            auth: { autoRefreshToken: false, persistSession: false }
         })
 
-    } catch (error) {
-        console.error('Webhook processing error:', error)
-        return NextResponse.json(
-            { error: 'Erro ao processar webhook' },
-            { status: 500 }
-        )
+        // Get current profile
+        const { data: profile } = await supabase.from('profiles').select('valid_until, plano').eq('id', userId).single()
+
+        const now = new Date()
+        let newValidUntil = new Date()
+        const currentValidUntil = profile?.valid_until ? new Date(profile.valid_until) : new Date(0)
+
+        // Extend or Reset
+        if (profile?.plano === planId && currentValidUntil > now) {
+            newValidUntil = new Date(currentValidUntil.getTime() + (30 * 24 * 60 * 60 * 1000))
+        } else {
+            newValidUntil.setDate(now.getDate() + 30)
+        }
+
+        const { error: updateError } = await supabase.from('profiles').update({
+            plano: planId,
+            status: 'active',
+            valid_until: newValidUntil.toISOString(),
+            updated_at: now.toISOString()
+        }).eq('id', userId)
+
+        if (updateError) {
+            console.error('Update failed:', updateError)
+            return NextResponse.json({ error: 'DB Update failed' }, { status: 500 })
+        }
+
+        return NextResponse.json({ success: true })
+
+    } catch (err) {
+        console.error('Webhook error:', err)
+        return NextResponse.json({ error: 'Server Error' }, { status: 500 })
     }
 }

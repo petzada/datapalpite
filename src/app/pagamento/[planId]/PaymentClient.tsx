@@ -24,7 +24,7 @@ interface PaymentResponse {
     priceInCents: number
 }
 
-type PaymentStatus = 'idle' | 'loading' | 'success' | 'error'
+type PaymentStatus = 'idle' | 'loading' | 'success' | 'paid' | 'error'
 
 export function PaymentClient({
     planId,
@@ -38,10 +38,35 @@ export function PaymentClient({
     const [error, setError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
 
-    // Generate Payment URL on mount
+    // Generate Payment on mount
     useEffect(() => {
         generatePayment()
     }, [planId])
+
+    // Poll for payment status
+    useEffect(() => {
+        // Only poll if we are waiting for payment (success status)
+        if (status !== 'success') return
+
+        const checkStatus = async () => {
+            try {
+                const res = await fetch('/api/payments/status')
+                if (res.ok) {
+                    const data = await res.json()
+                    // If plan matches target and is valid, we are good
+                    if (data.isValid && data.plan === planId) {
+                        setStatus('paid')
+                        setTimeout(() => router.push('/dashboard?payment=success'), 2000)
+                    }
+                }
+            } catch (error) {
+                console.error('Polling error', error)
+            }
+        }
+
+        const intervalId = setInterval(checkStatus, 5000)
+        return () => clearInterval(intervalId)
+    }, [planId, status, router])
 
     const generatePayment = async () => {
         setStatus('loading')
@@ -61,7 +86,7 @@ export function PaymentClient({
 
             const data: PaymentResponse = await response.json()
             setPaymentData(data)
-            setStatus('success')
+            setStatus('success') // 'success' here means QR code generated
 
         } catch (err) {
             console.error(err)

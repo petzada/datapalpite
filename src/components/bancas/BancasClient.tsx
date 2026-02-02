@@ -14,7 +14,7 @@ export function BancasClient({ bancas }: BancasClientProps) {
     const [dialogOpen, setDialogOpen] = useState(false);
 
     return (
-        <div className="max-w-4xl mx-auto">
+        <div className="w-full">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>
@@ -25,7 +25,7 @@ export function BancasClient({ bancas }: BancasClientProps) {
                         Gerencie suas casas de apostas e saldos
                     </p>
                 </div>
-                <Button onClick={() => setDialogOpen(true)}>
+                <Button onClick={() => setDialogOpen(true)} className="h-10">
                     <Plus className="w-4 h-4 mr-2" />
                     Nova Banca
                 </Button>

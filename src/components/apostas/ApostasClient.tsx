@@ -21,7 +21,7 @@ export function ApostasClient({ apostasPendentes, apostasFinalizadas, bancas }: 
     const hasBancas = bancas.length > 0;
 
     return (
-        <div className="max-w-4xl mx-auto">
+        <div className="w-full">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>
@@ -32,7 +32,7 @@ export function ApostasClient({ apostasPendentes, apostasFinalizadas, bancas }: 
                         Acompanhe suas apostas e resultados
                     </p>
                 </div>
-                <Button onClick={() => setDialogOpen(true)} disabled={!hasBancas}>
+                <Button onClick={() => setDialogOpen(true)} disabled={!hasBancas} className="h-10">
                     <Plus className="w-4 h-4 mr-2" />
                     Nova Aposta
                 </Button>

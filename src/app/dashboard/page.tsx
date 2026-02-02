@@ -19,7 +19,7 @@ export default async function DashboardPage() {
         undefined;
 
     return (
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
             {/* Header with Welcome Message and Filters */}
             <DashboardHeader userName={firstName} />
 
