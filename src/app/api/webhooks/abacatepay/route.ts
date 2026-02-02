@@ -12,25 +12,41 @@ const processedBillings = new Set<string>()
 
 /**
  * Verify webhook signature using HMAC SHA256
+ * AbacatePay sends signature in Base64 format
  * Returns true if signature is valid
  */
 function verifySignature(rawBody: string, signature: string, secret: string): boolean {
     try {
-        // Generate expected signature
-        const hmac = crypto.createHmac('sha256', secret)
-        const expectedSignature = hmac.update(rawBody, 'utf8').digest('hex')
+        // Generate expected signature as raw Buffer (32 bytes for SHA256)
+        const expectedBuffer = crypto
+            .createHmac('sha256', secret)
+            .update(rawBody, 'utf8')
+            .digest() // Returns Buffer directly (32 bytes)
 
-        // Handle possible prefixes (sha256=, etc.)
-        let cleanSignature = signature.trim()
-        if (cleanSignature.startsWith('sha256=')) {
-            cleanSignature = cleanSignature.slice(7)
+        // Decode received signature from Base64 to Buffer
+        const cleanSignature = signature.trim()
+        const receivedBuffer = Buffer.from(cleanSignature, 'base64')
+
+        // Debug: Log buffer sizes
+        console.log('[Webhook] Signature buffers:', {
+            expectedLength: expectedBuffer.length,
+            receivedLength: receivedBuffer.length,
+            expectedPreview: expectedBuffer.toString('base64').substring(0, 10),
+            receivedPreview: cleanSignature.substring(0, 10)
+        })
+
+        // SHA256 always produces 32 bytes
+        // If received buffer is not 32 bytes, signature format is wrong
+        if (receivedBuffer.length !== 32) {
+            console.warn('[Webhook] Invalid signature length:', {
+                expected: 32,
+                received: receivedBuffer.length,
+                hint: 'Signature should be 32 bytes (Base64 encoded)'
+            })
+            return false
         }
 
-        // Convert to buffers for timing-safe comparison
-        const expectedBuffer = Buffer.from(expectedSignature, 'hex')
-        const receivedBuffer = Buffer.from(cleanSignature, 'hex')
-
-        // Check length first (timingSafeEqual requires same length)
+        // Check length match (should both be 32 bytes)
         if (expectedBuffer.length !== receivedBuffer.length) {
             console.warn('[Webhook] Signature length mismatch:', {
                 expected: expectedBuffer.length,
@@ -39,6 +55,7 @@ function verifySignature(rawBody: string, signature: string, secret: string): bo
             return false
         }
 
+        // Timing-safe comparison
         return crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
     } catch (err) {
         console.error('[Webhook] Signature verification error:', err)
@@ -88,18 +105,17 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
         }
 
-        // Verify HMAC SHA256 signature
+        // Verify HMAC SHA256 signature (Base64 encoded)
         if (!verifySignature(rawBody, signature, ABACATEPAY_WEBHOOK_SECRET)) {
-            // Debug: Generate expected signature for comparison (only in development)
-            if (process.env.NODE_ENV === 'development') {
-                const hmac = crypto.createHmac('sha256', ABACATEPAY_WEBHOOK_SECRET)
-                const expected = hmac.update(rawBody, 'utf8').digest('hex')
-                console.warn('[Webhook] Signature mismatch debug:', {
-                    received: signature,
-                    expected: expected
-                })
-            }
-            console.warn('[Webhook] Invalid signature')
+            // Debug: Generate expected signature for comparison
+            const expectedBase64 = crypto
+                .createHmac('sha256', ABACATEPAY_WEBHOOK_SECRET)
+                .update(rawBody, 'utf8')
+                .digest('base64')
+            console.warn('[Webhook] Signature mismatch:', {
+                received: signature,
+                expected: expectedBase64
+            })
             return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
         }
 
