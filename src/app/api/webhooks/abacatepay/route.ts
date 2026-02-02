@@ -54,6 +54,18 @@ interface WebhookPayload {
             userId?: string
             planId?: string
         }
+        pixQrCode?: {
+            metadata?: {
+                userId?: string
+                planId?: string
+            }
+        }
+        bill?: {
+            metadata?: {
+                userId?: string
+                planId?: string
+            }
+        }
     }
 }
 
@@ -139,7 +151,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract metadata
-    const metadata = payload.data?.metadata
+    // Check both direct metadata (legacy/billing) and pixQrCode metadata (direct pix)
+    const metadata = payload.data?.metadata || payload.data?.pixQrCode?.metadata || payload.data?.bill?.metadata
+
     if (!metadata?.userId || !metadata?.planId) {
         console.error('[Webhook] Missing metadata in payload. Full payload:', JSON.stringify(payload, null, 2))
         return NextResponse.json({ error: 'Missing metadata' }, { status: 400 })
