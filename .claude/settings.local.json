@@ -9,7 +9,9 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(git update-index:*)",
-      "WebFetch(domain:docs.abacatepay.com)"
+      "WebFetch(domain:docs.abacatepay.com)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }
