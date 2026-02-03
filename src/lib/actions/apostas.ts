@@ -96,7 +96,7 @@ export async function createAposta(formData: ApostaFormData): Promise<{ success:
     // Validar input com Zod
     const validationResult = apostaFormSchema.safeParse(formData);
     if (!validationResult.success) {
-        const errorMessage = validationResult.error.errors[0]?.message || "Dados inválidos";
+        const errorMessage = validationResult.error.issues[0]?.message || "Dados inválidos";
         return { success: false, error: errorMessage };
     }
     const validatedData = validationResult.data;
@@ -164,7 +164,7 @@ export async function resolverAposta(
     // Validar input
     const validationResult = resolverApostaSchema.safeParse({ id, resultado });
     if (!validationResult.success) {
-        const errorMessage = validationResult.error.errors[0]?.message || "Dados inválidos";
+        const errorMessage = validationResult.error.issues[0]?.message || "Dados inválidos";
         return { success: false, error: errorMessage };
     }
 

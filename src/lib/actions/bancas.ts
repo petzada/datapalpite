@@ -52,7 +52,7 @@ export async function createBanca(formData: BancaFormData): Promise<{ success: b
     // Validar input com Zod
     const validationResult = bancaFormSchema.safeParse(formData);
     if (!validationResult.success) {
-        const errorMessage = validationResult.error.errors[0]?.message || "Dados inválidos";
+        const errorMessage = validationResult.error.issues[0]?.message || "Dados inválidos";
         return { success: false, error: errorMessage };
     }
     const validatedData = validationResult.data;
@@ -97,7 +97,7 @@ export async function updateBanca(id: string, formData: BancaFormData): Promise<
     // Validar form data
     const validationResult = bancaFormSchema.safeParse(formData);
     if (!validationResult.success) {
-        const errorMessage = validationResult.error.errors[0]?.message || "Dados inválidos";
+        const errorMessage = validationResult.error.issues[0]?.message || "Dados inválidos";
         return { success: false, error: errorMessage };
     }
     const validatedData = validationResult.data;
