@@ -13,7 +13,7 @@ const benefits = [
     },
     {
         title: "Histórico de Performance",
-        description: "Acompanhe seus indicadores (como ROI e Yield) em tempo real com gráficos precisos.",
+        description: "Acompanhe seus indicadores (como ROI e P&L) em tempo real com gráficos precisos.",
         icon: BarChart3,
     },
 ];

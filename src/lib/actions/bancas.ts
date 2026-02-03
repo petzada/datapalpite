@@ -2,6 +2,15 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+// Schema de validação
+const bancaFormSchema = z.object({
+    nome: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
+    saldo_inicial: z.number().min(0, "Saldo inicial não pode ser negativo").max(100000000, "Saldo muito alto"),
+    stake_percentual: z.number().min(0.1, "Stake mínimo é 0.1%").max(100, "Stake máximo é 100%").optional(),
+    notas: z.string().max(1000, "Notas muito longas").optional(),
+});
 
 export interface Banca {
     id: string;
@@ -40,6 +49,14 @@ export async function getBancas(): Promise<Banca[]> {
 
 // Criar nova banca
 export async function createBanca(formData: BancaFormData): Promise<{ success: boolean; error?: string }> {
+    // Validar input com Zod
+    const validationResult = bancaFormSchema.safeParse(formData);
+    if (!validationResult.success) {
+        const errorMessage = validationResult.error.errors[0]?.message || "Dados inválidos";
+        return { success: false, error: errorMessage };
+    }
+    const validatedData = validationResult.data;
+
     const supabase = await createClient();
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -52,10 +69,10 @@ export async function createBanca(formData: BancaFormData): Promise<{ success: b
         .from("bancas")
         .insert({
             user_id: user.id,
-            nome: formData.nome,
-            saldo_inicial: formData.saldo_inicial,
-            stake_percentual: formData.stake_percentual ?? 2.0,
-            notas: formData.notas || null,
+            nome: validatedData.nome,
+            saldo_inicial: validatedData.saldo_inicial,
+            stake_percentual: validatedData.stake_percentual ?? 2.0,
+            notas: validatedData.notas || null,
         });
 
     if (error) {
@@ -70,15 +87,30 @@ export async function createBanca(formData: BancaFormData): Promise<{ success: b
 
 // Atualizar banca existente
 export async function updateBanca(id: string, formData: BancaFormData): Promise<{ success: boolean; error?: string }> {
+    // Validar UUID
+    const uuidSchema = z.string().uuid("ID da banca inválido");
+    const idValidation = uuidSchema.safeParse(id);
+    if (!idValidation.success) {
+        return { success: false, error: "ID da banca inválido" };
+    }
+
+    // Validar form data
+    const validationResult = bancaFormSchema.safeParse(formData);
+    if (!validationResult.success) {
+        const errorMessage = validationResult.error.errors[0]?.message || "Dados inválidos";
+        return { success: false, error: errorMessage };
+    }
+    const validatedData = validationResult.data;
+
     const supabase = await createClient();
 
     const { error } = await supabase
         .from("bancas")
         .update({
-            nome: formData.nome,
-            saldo_inicial: formData.saldo_inicial,
-            stake_percentual: formData.stake_percentual ?? 2.0,
-            notas: formData.notas || null,
+            nome: validatedData.nome,
+            saldo_inicial: validatedData.saldo_inicial,
+            stake_percentual: validatedData.stake_percentual ?? 2.0,
+            notas: validatedData.notas || null,
         })
         .eq("id", id);
 
@@ -94,6 +126,13 @@ export async function updateBanca(id: string, formData: BancaFormData): Promise<
 
 // Excluir banca
 export async function deleteBanca(id: string): Promise<{ success: boolean; error?: string }> {
+    // Validar UUID
+    const uuidSchema = z.string().uuid("ID da banca inválido");
+    const validationResult = uuidSchema.safeParse(id);
+    if (!validationResult.success) {
+        return { success: false, error: "ID da banca inválido" };
+    }
+
     const supabase = await createClient();
 
     const { error } = await supabase

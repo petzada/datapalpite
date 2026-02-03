@@ -13,11 +13,8 @@ import { createClient } from '@supabase/supabase-js'
  */
 
 // AbacatePay PUBLIC KEY for HMAC signature validation
-// This is a FIXED key from AbacatePay, NOT the webhook secret from dashboard
-const ABACATEPAY_PUBLIC_KEY = 't9dXRhHHo3yDEj5pVDYz0frf7q6bMKyMRmxxCPIPp3RCplBfXRxqlC6ZpiWmOqj4L63qEaeUOtrCI8P0VMUgo6iIga2ri9ogaHFs0WIIywSMg0q7RmBfybe1E5XJcfC4IW3alNqym0tXoAKkzvfEjZxV6bE0oG2zJrNNYmUCKZyV0KZ3JS8Votf9EAWWYdiDkMkpbMdPggfh1EqHlVkMiTady6jOR3hyzGEHrIz2Ret0xHKMbiqkr9HS1JhNHDX9'
-
-// In-memory cache for idempotency
-const processedBillings = new Set<string>()
+// Configured via environment variable for easier rotation
+const ABACATEPAY_HMAC_KEY = process.env.ABACATEPAY_HMAC_KEY || ''
 
 /**
  * Verify AbacatePay webhook signature
@@ -27,7 +24,7 @@ function verifyAbacateSignature(rawBody: string, signatureFromHeader: string): b
     try {
         const bodyBuffer = Buffer.from(rawBody, 'utf8')
         const expectedSig = crypto
-            .createHmac('sha256', ABACATEPAY_PUBLIC_KEY)
+            .createHmac('sha256', ABACATEPAY_HMAC_KEY)
             .update(bodyBuffer)
             .digest('base64')
 
@@ -71,6 +68,14 @@ interface WebhookPayload {
 
 export async function POST(request: NextRequest) {
     // ============================================================
+    // STEP 0: Verify HMAC key is configured
+    // ============================================================
+    if (!ABACATEPAY_HMAC_KEY) {
+        console.error('[Webhook] ABACATEPAY_HMAC_KEY not configured')
+        return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
+    // ============================================================
     // STEP 1: Read raw body FIRST (before any parsing)
     // ============================================================
     const rawBody = await request.text()
@@ -99,7 +104,7 @@ export async function POST(request: NextRequest) {
         console.error('[Webhook] Invalid signature')
         // Debug info
         const expectedSig = crypto
-            .createHmac('sha256', ABACATEPAY_PUBLIC_KEY)
+            .createHmac('sha256', ABACATEPAY_HMAC_KEY)
             .update(Buffer.from(rawBody, 'utf8'))
             .digest('base64')
         console.error('[Webhook] Expected:', expectedSig)
@@ -143,14 +148,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ received: true, event: payload.event })
     }
 
-    // Idempotency check
+    // Extract metadata first to get userId for idempotency check
     const eventId = payload.id
-    if (processedBillings.has(eventId)) {
-        console.log('[Webhook] Already processed:', eventId)
-        return NextResponse.json({ received: true, skipped: true })
-    }
-
-    // Extract metadata
     // Check both direct metadata (legacy/billing) and pixQrCode metadata (direct pix)
     const metadata = payload.data?.metadata || payload.data?.pixQrCode?.metadata || payload.data?.bill?.metadata
 
@@ -184,7 +183,23 @@ export async function POST(request: NextRequest) {
         auth: { autoRefreshToken: false, persistSession: false }
     })
 
-    // Get current profile
+    // ============================================================
+    // STEP 6.1: Idempotency check (persistent in database)
+    // ============================================================
+    const { data: existingEvent } = await supabase
+        .from('webhook_events')
+        .select('id')
+        .eq('event_id', eventId)
+        .single()
+
+    if (existingEvent) {
+        console.log('[Webhook] Already processed (from DB):', eventId)
+        return NextResponse.json({ received: true, skipped: true })
+    }
+
+    // ============================================================
+    // STEP 6.2: Get current profile
+    // ============================================================
     const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('valid_until, plano')
@@ -225,13 +240,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Database update failed' }, { status: 500 })
     }
 
-    // Mark as processed
-    processedBillings.add(eventId)
+    // ============================================================
+    // STEP 7: Mark as processed (persistent idempotency)
+    // ============================================================
+    const { error: idempotencyError } = await supabase
+        .from('webhook_events')
+        .insert({
+            event_id: eventId,
+            event_type: payload.event,
+            provider: 'abacatepay',
+            user_id: userId,
+            plan_id: planId,
+            amount: payload.data.amount,
+            status: 'processed'
+        })
 
-    // Cleanup cache if too large
-    if (processedBillings.size > 1000) {
-        const entries = Array.from(processedBillings)
-        entries.slice(0, 500).forEach(id => processedBillings.delete(id))
+    if (idempotencyError) {
+        // Log but don't fail - the payment was already processed successfully
+        console.warn('[Webhook] Failed to record idempotency:', idempotencyError)
     }
 
     console.log('[Webhook] Successfully activated', planId, 'for user', userId)

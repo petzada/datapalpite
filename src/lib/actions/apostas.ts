@@ -2,6 +2,29 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+// Schemas de validação
+const eventoSchema = z.object({
+    esporte: z.string().min(1, "Esporte é obrigatório").max(100),
+    evento: z.string().min(1, "Evento é obrigatório").max(200),
+    mercado: z.string().min(1, "Mercado é obrigatório").max(200),
+    odd: z.number().positive("Odd deve ser maior que zero").max(10000, "Odd inválida"),
+});
+
+const apostaFormSchema = z.object({
+    banca_id: z.string().uuid("ID da banca inválido"),
+    tipo: z.enum(["simples", "multipla"], { message: "Tipo deve ser 'simples' ou 'multipla'" }),
+    data_aposta: z.string().refine((val) => !isNaN(Date.parse(val)), "Data inválida"),
+    stake: z.number().positive("Stake deve ser maior que zero").max(1000000, "Stake muito alto"),
+    eventos: z.array(eventoSchema).min(1, "Pelo menos um evento é obrigatório").max(50, "Máximo de 50 eventos"),
+    odds_total: z.number().positive().max(1000000).optional(),
+});
+
+const resolverApostaSchema = z.object({
+    id: z.string().uuid("ID da aposta inválido"),
+    resultado: z.enum(["ganha", "perdida", "anulada"], { message: "Resultado inválido" }),
+});
 
 export interface Aposta {
     id: string;
@@ -70,6 +93,14 @@ export async function getApostas(status?: "pendente" | "finalizada"): Promise<Ap
 
 // Criar nova aposta
 export async function createAposta(formData: ApostaFormData): Promise<{ success: boolean; error?: string }> {
+    // Validar input com Zod
+    const validationResult = apostaFormSchema.safeParse(formData);
+    if (!validationResult.success) {
+        const errorMessage = validationResult.error.errors[0]?.message || "Dados inválidos";
+        return { success: false, error: errorMessage };
+    }
+    const validatedData = validationResult.data;
+
     const supabase = await createClient();
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -79,17 +110,17 @@ export async function createAposta(formData: ApostaFormData): Promise<{ success:
     }
 
     // Use provided odds_total or calculate from eventos (for simple bets)
-    const oddsTotal = formData.odds_total ?? formData.eventos.reduce((acc, ev) => acc * ev.odd, 1);
+    const oddsTotal = validatedData.odds_total ?? validatedData.eventos.reduce((acc, ev) => acc * ev.odd, 1);
 
     // Inserir aposta
     const { data: aposta, error: apostaError } = await supabase
         .from("apostas")
         .insert({
             user_id: user.id,
-            banca_id: formData.banca_id,
-            tipo: formData.tipo,
-            data_aposta: formData.data_aposta,
-            stake: formData.stake,
+            banca_id: validatedData.banca_id,
+            tipo: validatedData.tipo,
+            data_aposta: validatedData.data_aposta,
+            stake: validatedData.stake,
             odds_total: oddsTotal,
         })
         .select()
@@ -101,7 +132,7 @@ export async function createAposta(formData: ApostaFormData): Promise<{ success:
     }
 
     // Inserir eventos
-    const eventosParaInserir = formData.eventos.map((ev) => ({
+    const eventosParaInserir = validatedData.eventos.map((ev) => ({
         aposta_id: aposta.id,
         esporte: ev.esporte,
         evento: ev.evento,
@@ -130,6 +161,13 @@ export async function resolverAposta(
     id: string,
     resultado: "ganha" | "perdida" | "anulada"
 ): Promise<{ success: boolean; error?: string }> {
+    // Validar input
+    const validationResult = resolverApostaSchema.safeParse({ id, resultado });
+    if (!validationResult.success) {
+        const errorMessage = validationResult.error.errors[0]?.message || "Dados inválidos";
+        return { success: false, error: errorMessage };
+    }
+
     const supabase = await createClient();
 
     // Buscar aposta para calcular P&L
@@ -175,6 +213,13 @@ export async function resolverAposta(
 
 // Excluir aposta
 export async function deleteAposta(id: string): Promise<{ success: boolean; error?: string }> {
+    // Validar UUID
+    const uuidSchema = z.string().uuid("ID da aposta inválido");
+    const validationResult = uuidSchema.safeParse(id);
+    if (!validationResult.success) {
+        return { success: false, error: "ID da aposta inválido" };
+    }
+
     const supabase = await createClient();
 
     const { error } = await supabase

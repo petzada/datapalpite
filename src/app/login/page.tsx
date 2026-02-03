@@ -39,7 +39,6 @@ function LoginForm() {
         firstName: "",
         lastName: "",
         email: "",
-        cpf: "",
         password: "",
         referralCode: "",
     });
@@ -96,7 +95,6 @@ function LoginForm() {
                 emailRedirectTo: `${window.location.origin}/auth/callback`,
                 data: {
                     full_name: `${signupData.firstName} ${signupData.lastName}`.trim(),
-                    cpf: signupData.cpf,
                     referral_code: signupData.referralCode || null,
                 }
             }
@@ -120,7 +118,6 @@ function LoginForm() {
                 firstName: "",
                 lastName: "",
                 email: "",
-                cpf: "",
                 password: "",
                 referralCode: "",
             });
@@ -167,15 +164,6 @@ function LoginForm() {
         }
 
         setLoading(false);
-    };
-
-    // CPF mask function
-    const formatCPF = (value: string) => {
-        const numbers = value.replace(/\D/g, "");
-        if (numbers.length <= 3) return numbers;
-        if (numbers.length <= 6) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
-        if (numbers.length <= 9) return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`;
-        return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`;
     };
 
     return (
@@ -299,23 +287,6 @@ function LoginForm() {
                             onChange={(e) =>
                                 setSignupData({ ...signupData, email: e.target.value })
                             }
-                            required
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="cpf">CPF</Label>
-                        <Input
-                            id="cpf"
-                            placeholder="000.000.000-00"
-                            value={signupData.cpf}
-                            onChange={(e) =>
-                                setSignupData({
-                                    ...signupData,
-                                    cpf: formatCPF(e.target.value),
-                                })
-                            }
-                            maxLength={14}
                             required
                         />
                     </div>

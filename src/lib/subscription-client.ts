@@ -40,9 +40,10 @@ export async function getProfileClient(): Promise<Profile | null> {
 
     if (!user) return null
 
+    // Seleciona apenas os campos necessários para evitar over-fetching
     const { data: profile, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, plano, status, valid_until, ai_queries_today, last_ai_query_date')
         .eq('id', user.id)
         .single()
 

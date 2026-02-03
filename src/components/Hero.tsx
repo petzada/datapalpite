@@ -17,7 +17,7 @@ export function Hero() {
 
                         {/* Subheadline */}
                         <p className="text-lg text-muted-foreground leading-relaxed mb-8">
-                            Gestão de banca automatizada e consulta com IA avançada, rápido e fácil. A ferramenta definitiva para o apostador profissional.
+                            Gestão de banca automatizada e consulta com IA avançada, rápido e fácil. A ferramenta definitiva para o apostador casual e profissional.
                         </p>
 
                         {/* CTAs */}

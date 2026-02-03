@@ -8,7 +8,7 @@ const features = [
     },
     {
         title: "Indicadores Inteligentes",
-        description: "ROI, Yield, Profit/Loss e outros KPIs profissionais automáticos.",
+        description: "ROI, Win Rate, Profit/Loss e outros indicadores profissionais automáticos.",
         icon: TrendingUp,
     },
     {

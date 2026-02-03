@@ -66,9 +66,10 @@ export async function getProfile(): Promise<Profile | null> {
 
     if (!user) return null
 
+    // Seleciona apenas os campos necessários para evitar over-fetching
     const { data: profile, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, email, avatar_url, plano, status, valid_until, ai_queries_today, last_ai_query_date, created_at, updated_at')
         .eq('id', user.id)
         .single()
 
@@ -86,9 +87,10 @@ export async function getProfile(): Promise<Profile | null> {
 export async function getProfileById(userId: string): Promise<Profile | null> {
     const supabase = await createClient()
 
+    // Seleciona apenas os campos necessários para evitar over-fetching
     const { data: profile, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, email, avatar_url, plano, status, valid_until, ai_queries_today, last_ai_query_date, created_at, updated_at')
         .eq('id', userId)
         .single()
 

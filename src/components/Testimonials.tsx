@@ -2,16 +2,16 @@ import { Quote } from "lucide-react";
 
 const testimonials = [
     {
-        name: "Ricardo S.",
+        name: "Ricardo",
         quote: "O Data Palpite mudou minha forma de enxergar a banca. Saí de um descontrole total para um ROI consistente de 15% ao mês. A organização é a chave.",
     },
     {
-        name: "Ana Clara",
+        name: "Ana Beatriz",
         quote: "As consultas com IA me ajudam a validar minhas entradas. É como ter um assistente de dados 24h por dia. Não opero mais sem consultar o sistema.",
     },
     {
-        name: "Marcos Vinícius",
-        quote: "Interface limpa e profissional. Finalmente um SaaS que não parece um cassino colorido. É ferramenta de trabalho séria.",
+        name: "Marcos",
+        quote: "Interface limpa e profissional. Finalmente uma ferramenta que não parece um cassino colorido. É ferramenta de trabalho séria.",
     },
 ];
 
@@ -21,7 +21,7 @@ export function Testimonials() {
             <div className="container-main">
                 <div className="text-center mb-12">
                     <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-                        Quem usa, aprova
+                        Quem usa, recomenda
                     </h2>
                     <p className="text-muted-foreground max-w-lg mx-auto">
                         Veja o que nossos usuários têm a dizer sobre a plataforma

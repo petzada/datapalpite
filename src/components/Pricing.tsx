@@ -41,7 +41,7 @@ export function Pricing() {
                         Escolha o plano ideal para você
                     </h2>
                     <p className="text-muted-foreground">
-                        Teste grátis por 7 dias. Cancele quando quiser.
+                        Teste gratuito por 7 dias. Sem necessidade de pagamentos antecipados.
                     </p>
                 </div>
 
