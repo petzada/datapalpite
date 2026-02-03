@@ -12,7 +12,8 @@
       "WebFetch(domain:docs.abacatepay.com)",
       "Bash(./node_modules/.bin/tsc:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(/c/Program Files/nodejs/npx.cmd next build)"
+      "Bash(/c/Program Files/nodejs/npx.cmd next build)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

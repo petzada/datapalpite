@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+// Security headers configured below
 
 const nextConfig: NextConfig = {
   async headers() {
