@@ -11,11 +11,17 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
-interface DashboardHeaderProps {
-    userName?: string;
+interface BancaInfo {
+    id: string;
+    nome: string;
 }
 
-export function DashboardHeader({ userName }: DashboardHeaderProps) {
+interface DashboardHeaderProps {
+    userName?: string;
+    bancas?: BancaInfo[];
+}
+
+export function DashboardHeader({ userName, bancas = [] }: DashboardHeaderProps) {
     const searchParams = useSearchParams();
     const [showSuccess, setShowSuccess] = useState(false);
 
@@ -88,7 +94,11 @@ export function DashboardHeader({ userName }: DashboardHeaderProps) {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Todas</SelectItem>
-                        {/* Other houses will be populated based on user's registered houses */}
+                        {bancas.map((banca) => (
+                            <SelectItem key={banca.id} value={banca.id}>
+                                {banca.nome}
+                            </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>

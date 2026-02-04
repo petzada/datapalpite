@@ -63,6 +63,7 @@ export function BancasTable({ bancas }: BancasTableProps) {
                         <TableRow>
                             <TableHead>Nome da Banca</TableHead>
                             <TableHead className="text-right">Saldo Inicial</TableHead>
+                            <TableHead className="hidden sm:table-cell text-right">Stake</TableHead>
                             <TableHead className="hidden md:table-cell">Data de Início</TableHead>
                             <TableHead className="text-right w-[100px]">Ações</TableHead>
                         </TableRow>
@@ -73,6 +74,9 @@ export function BancasTable({ bancas }: BancasTableProps) {
                                 <TableCell className="font-medium">{banca.nome}</TableCell>
                                 <TableCell className="text-right">
                                     {formatCurrency(banca.saldo_inicial)}
+                                </TableCell>
+                                <TableCell className="hidden sm:table-cell text-right text-muted-foreground">
+                                    {banca.stake_percentual}% ({formatCurrency(banca.saldo_inicial * (banca.stake_percentual / 100))})
                                 </TableCell>
                                 <TableCell className="hidden md:table-cell text-muted-foreground">
                                     {formatDate(banca.created_at)}

@@ -42,6 +42,41 @@ export interface DashboardStats {
     stakePercentualMedio: number;
 }
 
+export interface BancaWithPL {
+    id: string;
+    nome: string;
+    saldo_inicial: number;
+    stake_percentual: number;
+    totalPL: number;
+    saldoAtual: number;
+}
+
+export async function getBancasWithPL(): Promise<BancaWithPL[]> {
+    const supabase = await createClient();
+
+    const [{ data: bancas }, { data: apostas }] = await Promise.all([
+        supabase.from("bancas").select("id, nome, saldo_inicial, stake_percentual"),
+        supabase.from("apostas").select("banca_id, lucro_prejuizo").neq("status", "pendente"),
+    ]);
+
+    if (!bancas) return [];
+
+    const plByBanca = new Map<string, number>();
+    apostas?.forEach((a) => {
+        const current = plByBanca.get(a.banca_id) || 0;
+        plByBanca.set(a.banca_id, current + (a.lucro_prejuizo || 0));
+    });
+
+    return bancas.map((b) => ({
+        id: b.id,
+        nome: b.nome,
+        saldo_inicial: b.saldo_inicial,
+        stake_percentual: b.stake_percentual,
+        totalPL: plByBanca.get(b.id) || 0,
+        saldoAtual: b.saldo_inicial + (plByBanca.get(b.id) || 0),
+    }));
+}
+
 export async function getDashboardStats(): Promise<DashboardStats> {
     const supabase = await createClient();
 

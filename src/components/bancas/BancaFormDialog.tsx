@@ -150,7 +150,7 @@ export function BancaFormDialog({ open, onOpenChange, banca }: BancaFormDialogPr
     if (!isEditing && limitReached && !checkingLimit) {
         return (
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <AlertTriangle className="w-5 h-5 text-amber-500" />
@@ -192,7 +192,7 @@ export function BancaFormDialog({ open, onOpenChange, banca }: BancaFormDialogPr
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] max-h-[85vh] overflow-y-auto">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
                         <DialogTitle>

@@ -1,16 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
 import { DashboardHeader, KPISection, ChartsSection } from "@/components/dashboard";
-import { getDashboardStats, getDashboardCharts } from "@/lib/actions/dashboard";
+import { getDashboardStats, getDashboardCharts, getBancasWithPL } from "@/lib/actions/dashboard";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
     const supabase = await createClient();
 
-    const [{ data: { user } }, stats, chartsData] = await Promise.all([
+    const [{ data: { user } }, stats, chartsData, bancas] = await Promise.all([
         supabase.auth.getUser(),
         getDashboardStats(),
         getDashboardCharts(),
+        getBancasWithPL(),
     ]);
 
     // Get the user's first name for the header
@@ -21,10 +22,10 @@ export default async function DashboardPage() {
     return (
         <div className="w-full">
             {/* Header with Welcome Message and Filters */}
-            <DashboardHeader userName={firstName} />
+            <DashboardHeader userName={firstName} bancas={bancas} />
 
             {/* KPIs Section - 5 cards side by side */}
-            <KPISection stats={stats} />
+            <KPISection stats={stats} bancas={bancas} />
 
             {/* Charts Section - 2 columns */}
             <ChartsSection

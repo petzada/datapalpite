@@ -65,7 +65,7 @@ export function ResolverApostaDialog({ open, onOpenChange, aposta }: ResolverApo
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[400px]">
+            <DialogContent className="sm:max-w-[400px] max-h-[85vh] overflow-y-auto">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
                         <DialogTitle>Resolver Aposta</DialogTitle>
