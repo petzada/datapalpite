@@ -1,4 +1,7 @@
+"use client"
+
 import Link from "next/link";
+import { useCookieConsent } from "@/contexts/CookieConsentContext";
 
 const footerLinks = {
     produto: [
@@ -13,6 +16,8 @@ const footerLinks = {
 };
 
 export function Footer() {
+    const { openPreferences } = useCookieConsent();
+
     return (
         <footer className="bg-primary text-white">
             <div className="container-main py-12 sm:py-16">
@@ -56,6 +61,14 @@ export function Footer() {
                                     </Link>
                                 </li>
                             ))}
+                            <li>
+                                <button
+                                    onClick={openPreferences}
+                                    className="text-white/70 hover:text-white text-sm transition-colors"
+                                >
+                                    Preferências de Cookies
+                                </button>
+                            </li>
                         </ul>
                     </div>
                 </div>

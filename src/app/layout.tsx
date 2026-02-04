@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { CookieConsentProvider } from "@/components/cookies";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -21,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="overflow-x-hidden scroll-smooth">
       <body className={`${inter.variable} font-sans antialiased overflow-x-hidden`}>
-        {children}
+        <CookieConsentProvider>
+          {children}
+        </CookieConsentProvider>
       </body>
     </html>
   );
