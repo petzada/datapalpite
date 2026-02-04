@@ -30,11 +30,12 @@ export function ROIBySportChart({ data }: ROIBySportChartProps) {
             return (
                 <div
                     style={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
+                        backgroundColor: "#09090b",
+                        border: "1px solid #27272a",
                         borderRadius: "8px",
                         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                         padding: "12px",
+                        color: "#fff",
                     }}
                 >
                     <p style={{ fontWeight: 600, marginBottom: "8px" }}>{label}</p>

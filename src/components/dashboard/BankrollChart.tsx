@@ -71,12 +71,13 @@ export function BankrollChart({ data, bancaNomes = [] }: BankrollChartProps) {
                                 />
                                 <Tooltip
                                     contentStyle={{
-                                        backgroundColor: "hsl(var(--card))",
-                                        border: "1px solid hsl(var(--border))",
+                                        backgroundColor: "#09090b",
+                                        border: "1px solid #27272a",
                                         borderRadius: "8px",
                                         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                                        color: "#fff",
                                     }}
-                                    labelStyle={{ fontWeight: 600 }}
+                                    labelStyle={{ fontWeight: 600, color: "#fff" }}
                                     formatter={(value, name) => [
                                         `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                                         name === "total" ? "Total" : String(name),
