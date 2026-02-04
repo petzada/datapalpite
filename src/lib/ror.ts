@@ -13,6 +13,7 @@ export interface RoRResult {
     rorReal: number;        // RoR baseado em dados reais (%)
     rorPlanejado: number;   // RoR baseado em stake planejado (%)
     hasRealData: boolean;   // Se tem dados suficientes para cálculo real
+    insufficientData: boolean; // Se não tem dados suficientes para nenhum cálculo
     isWarning: boolean;     // Se RoR real está muito acima do planejado
 }
 
@@ -63,14 +64,15 @@ export function processarRoR(data: RoRData): RoRResult {
 
     // Verificar se há dados suficientes para cálculo real
     const hasRealData = data.totalApostas >= MIN_APOSTAS_PARA_CALCULO;
+    const insufficientData = !hasRealData;
 
     let rorReal: number;
 
     if (hasRealData && data.winRate > 0 && data.oddMedia > 0) {
         rorReal = calcularRoR(data.winRate, data.oddMedia, data.stakePercent);
     } else {
-        // Sem dados suficientes, usar planejado
-        rorReal = rorPlanejado;
+        // Sem dados suficientes, não calcular
+        rorReal = -1;
     }
 
     // Verificar se há desvio significativo (real > planejado × 2)
@@ -80,6 +82,7 @@ export function processarRoR(data: RoRData): RoRResult {
         rorReal,
         rorPlanejado,
         hasRealData,
+        insufficientData,
         isWarning,
     };
 }

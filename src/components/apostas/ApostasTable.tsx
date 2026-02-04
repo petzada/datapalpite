@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Target, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Target, Trash2, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import {
     Table,
     TableBody,
@@ -168,6 +168,21 @@ export function ApostasTable({ apostas, tipo }: ApostasTableProps) {
                                                                 </Button>
                                                             </TooltipTrigger>
                                                             <TooltipContent>Resolver</TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+                                                    {tipo === "finalizadas" && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-9 w-9"
+                                                                    onClick={() => setResolving(aposta)}
+                                                                >
+                                                                    <Pencil className="h-4 w-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>Editar resultado</TooltipContent>
                                                         </Tooltip>
                                                     )}
                                                     <Tooltip>

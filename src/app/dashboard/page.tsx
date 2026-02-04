@@ -4,13 +4,22 @@ import { getDashboardStats, getDashboardCharts, getBancasWithPL } from "@/lib/ac
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+interface DashboardPageProps {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+    const params = await searchParams;
+    const periodo = typeof params.period === "string" ? params.period : "all";
+    const bancaId = typeof params.banca === "string" ? params.banca : "all";
+    const filters = { periodo, bancaId };
+
     const supabase = await createClient();
 
     const [{ data: { user } }, stats, chartsData, bancas] = await Promise.all([
         supabase.auth.getUser(),
-        getDashboardStats(),
-        getDashboardCharts(),
+        getDashboardStats(filters),
+        getDashboardCharts(filters),
         getBancasWithPL(),
     ]);
 
@@ -31,6 +40,7 @@ export default async function DashboardPage() {
             <ChartsSection
                 evolutionData={chartsData.evolutionData}
                 roiData={chartsData.roiData}
+                bancaNomes={chartsData.bancaNomes}
             />
         </div>
     );

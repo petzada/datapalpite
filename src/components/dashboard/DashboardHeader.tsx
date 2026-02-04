@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Calendar, CheckCircle2, X } from "lucide-react";
 import {
     Select,
@@ -23,18 +23,35 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ userName, bancas = [] }: DashboardHeaderProps) {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const [showSuccess, setShowSuccess] = useState(false);
+
+    const currentPeriod = searchParams.get("period") || "all";
+    const currentBanca = searchParams.get("banca") || "all";
 
     useEffect(() => {
         if (searchParams.get('payment') === 'success') {
             setShowSuccess(true);
-            // Remove query param from URL without refresh
             window.history.replaceState({}, '', '/dashboard');
-            // Auto-hide after 5 seconds
             const timer = setTimeout(() => setShowSuccess(false), 5000);
             return () => clearTimeout(timer);
         }
     }, [searchParams]);
+
+    const updateFilter = useCallback((key: string, value: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (value === "all" && key === "banca") {
+            params.delete("banca");
+        } else if (value === "all" && key === "period") {
+            params.delete("period");
+        } else {
+            params.set(key, value);
+        }
+        // Remove payment param if present
+        params.delete("payment");
+        const query = params.toString();
+        router.push(`/dashboard${query ? `?${query}` : ""}`);
+    }, [searchParams, router]);
 
     return (
         <>
@@ -70,38 +87,38 @@ export function DashboardHeader({ userName, bancas = [] }: DashboardHeaderProps)
                     )}
                 </div>
 
-            {/* Filters */}
-            <div className="flex items-center gap-3">
-                {/* Period Filter */}
-                <Select defaultValue="30">
-                    <SelectTrigger className="w-[140px]">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        <SelectValue placeholder="Período" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="7">7 dias</SelectItem>
-                        <SelectItem value="30">30 dias</SelectItem>
-                        <SelectItem value="90">90 dias</SelectItem>
-                        <SelectItem value="365">1 ano</SelectItem>
-                        <SelectItem value="all">Todo período</SelectItem>
-                    </SelectContent>
-                </Select>
+                {/* Filters */}
+                <div className="flex items-center gap-3">
+                    {/* Period Filter */}
+                    <Select value={currentPeriod} onValueChange={(v) => updateFilter("period", v)}>
+                        <SelectTrigger className="w-[140px]">
+                            <Calendar className="w-4 h-4 mr-2" />
+                            <SelectValue placeholder="Período" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="7">7 dias</SelectItem>
+                            <SelectItem value="30">30 dias</SelectItem>
+                            <SelectItem value="90">90 dias</SelectItem>
+                            <SelectItem value="365">1 ano</SelectItem>
+                            <SelectItem value="all">Todo período</SelectItem>
+                        </SelectContent>
+                    </Select>
 
-                {/* Betting House Filter */}
-                <Select defaultValue="all">
-                    <SelectTrigger className="w-[160px]">
-                        <SelectValue placeholder="Casa de apostas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Todas</SelectItem>
-                        {bancas.map((banca) => (
-                            <SelectItem key={banca.id} value={banca.id}>
-                                {banca.nome}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
+                    {/* Betting House Filter */}
+                    <Select value={currentBanca} onValueChange={(v) => updateFilter("banca", v)}>
+                        <SelectTrigger className="w-[160px]">
+                            <SelectValue placeholder="Casa de apostas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas</SelectItem>
+                            {bancas.map((banca) => (
+                                <SelectItem key={banca.id} value={banca.id}>
+                                    {banca.nome}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
         </>
     );

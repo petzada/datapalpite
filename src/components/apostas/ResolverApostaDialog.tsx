@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
     Dialog,
@@ -35,6 +35,20 @@ export function ResolverApostaDialog({ open, onOpenChange, aposta }: ResolverApo
     const [error, setError] = useState<string | null>(null);
     const [resultado, setResultado] = useState<"ganha" | "perdida" | "anulada">("ganha");
 
+    const isEditing = aposta != null && aposta.status !== "pendente";
+
+    // Pre-fill resultado when dialog opens with a finalized bet
+    useEffect(() => {
+        if (open && aposta) {
+            if (isEditing) {
+                setResultado(aposta.status as "ganha" | "perdida" | "anulada");
+            } else {
+                setResultado("ganha");
+            }
+            setError(null);
+        }
+    }, [open, aposta, isEditing]);
+
     // Get first event summary
     const eventoResumo = aposta?.eventos?.[0]
         ? `${aposta.eventos[0].evento} - ${aposta.eventos[0].mercado}`
@@ -68,9 +82,14 @@ export function ResolverApostaDialog({ open, onOpenChange, aposta }: ResolverApo
             <DialogContent className="sm:max-w-[400px] max-h-[85vh] overflow-y-auto">
                 <form onSubmit={handleSubmit}>
                     <DialogHeader>
-                        <DialogTitle>Resolver Aposta</DialogTitle>
+                        <DialogTitle>
+                            {isEditing ? "Editar Resultado" : "Resolver Aposta"}
+                        </DialogTitle>
                         <DialogDescription>
-                            Selecione o resultado da aposta para atualizar suas métricas.
+                            {isEditing
+                                ? "Altere o resultado desta aposta."
+                                : "Selecione o resultado da aposta para atualizar suas métricas."
+                            }
                         </DialogDescription>
                     </DialogHeader>
 
@@ -94,19 +113,19 @@ export function ResolverApostaDialog({ open, onOpenChange, aposta }: ResolverApo
                                 <div className="flex items-center space-x-2">
                                     <RadioGroupItem value="ganha" id="ganha" />
                                     <Label htmlFor="ganha" className="font-normal cursor-pointer">
-                                        ✅ Ganha
+                                        Ganha
                                     </Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <RadioGroupItem value="perdida" id="perdida" />
                                     <Label htmlFor="perdida" className="font-normal cursor-pointer">
-                                        ❌ Perdida
+                                        Perdida
                                     </Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <RadioGroupItem value="anulada" id="anulada" />
                                     <Label htmlFor="anulada" className="font-normal cursor-pointer">
-                                        ⚪ Anulada
+                                        Anulada
                                     </Label>
                                 </div>
                             </RadioGroup>

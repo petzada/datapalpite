@@ -85,13 +85,13 @@ export function KPISection({ stats, bancas = [] }: KPISectionProps) {
                 />
                 <KPICard
                     title="Risco de Ruína"
-                    value={formatRoR(rorData.rorReal)}
-                    description={rorData.hasRealData
-                        ? "Probabilidade real de perder toda a banca, baseada no seu histórico."
-                        : "Probabilidade planejada de ruína. Registre mais apostas para o cálculo real."
+                    value={rorData.insufficientData ? "--" : formatRoR(rorData.rorReal)}
+                    description={rorData.insufficientData
+                        ? "Registre pelo menos 10 apostas para calcular o Risco de Ruína."
+                        : "Probabilidade real de perder toda a banca, baseada no seu histórico."
                     }
                     icon={AlertTriangle}
-                    color={getRoRColor(rorData.rorReal)}
+                    color={rorData.insufficientData ? "default" : getRoRColor(rorData.rorReal)}
                     secondaryValue={rorData.hasRealData ? `planejado: ${formatRoR(rorData.rorPlanejado)}` : undefined}
                     showWarning={rorData.isWarning}
                 />

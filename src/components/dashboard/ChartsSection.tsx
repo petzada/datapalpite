@@ -2,17 +2,18 @@
 
 import { BankrollChart } from "./BankrollChart";
 import { ROIBySportChart } from "./ROIBySportChart";
-import type { BankrollEvolutionData, RoiBySportData } from "@/lib/actions/dashboard";
+import type { MultiSeriesEvolutionData, RoiBySportData } from "@/lib/actions/dashboard";
 
 interface ChartsSectionProps {
-    evolutionData: BankrollEvolutionData[];
+    evolutionData: MultiSeriesEvolutionData[];
     roiData: RoiBySportData[];
+    bancaNomes?: string[];
 }
 
-export function ChartsSection({ evolutionData, roiData }: ChartsSectionProps) {
+export function ChartsSection({ evolutionData, roiData, bancaNomes = [] }: ChartsSectionProps) {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <BankrollChart data={evolutionData} />
+            <BankrollChart data={evolutionData} bancaNomes={bancaNomes} />
             <ROIBySportChart data={roiData} />
         </div>
     );

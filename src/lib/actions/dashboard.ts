@@ -77,19 +77,47 @@ export async function getBancasWithPL(): Promise<BancaWithPL[]> {
     }));
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+export interface DashboardFilters {
+    periodo?: string;  // "7" | "30" | "90" | "365" | "all"
+    bancaId?: string;  // UUID or "all"
+}
+
+function getDateFilter(periodo: string): Date | null {
+    if (periodo === "all") return null;
+    const days = parseInt(periodo, 10);
+    if (isNaN(days)) return null;
+    const date = new Date();
+    date.setDate(date.getDate() - days);
+    return date;
+}
+
+export async function getDashboardStats(filters?: DashboardFilters): Promise<DashboardStats> {
     const supabase = await createClient();
+    const periodo = filters?.periodo || "all";
+    const bancaId = filters?.bancaId || "all";
 
     // Buscar bancas para saldo e stake %
-    const { data: bancas } = await supabase
+    let bancasQuery = supabase
         .from("bancas")
-        .select("saldo_inicial, stake_percentual");
+        .select("id, saldo_inicial, stake_percentual");
+    if (bancaId !== "all") {
+        bancasQuery = bancasQuery.eq("id", bancaId);
+    }
+    const { data: bancas } = await bancasQuery;
 
     // Buscar apostas finalizadas
-    const { data: apostas } = await supabase
+    let apostasQuery = supabase
         .from("apostas")
-        .select("status, stake, odds_total, lucro_prejuizo")
+        .select("status, stake, odds_total, lucro_prejuizo, banca_id, created_at")
         .neq("status", "pendente");
+    if (bancaId !== "all") {
+        apostasQuery = apostasQuery.eq("banca_id", bancaId);
+    }
+    const dateFilter = getDateFilter(periodo);
+    if (dateFilter) {
+        apostasQuery = apostasQuery.gte("created_at", dateFilter.toISOString());
+    }
+    const { data: apostas } = await apostasQuery;
 
     // Calcular métricas
     const saldoInicial = bancas?.reduce((acc, b) => acc + (b.saldo_inicial || 0), 0) || 0;
@@ -121,18 +149,39 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     };
 }
 
-export async function getDashboardCharts(): Promise<DashboardChartsData> {
+export interface MultiSeriesEvolutionData {
+    date: string;
+    total: number;
+    [bancaNome: string]: number | string; // dynamic keys per banca
+}
+
+export interface DashboardChartsDataV2 {
+    evolutionData: MultiSeriesEvolutionData[];
+    roiData: RoiBySportData[];
+    bancaNomes: string[]; // list of banca names for chart legend
+}
+
+export async function getDashboardCharts(filters?: DashboardFilters): Promise<DashboardChartsDataV2> {
     const supabase = await createClient();
+    const periodo = filters?.periodo || "all";
+    const bancaId = filters?.bancaId || "all";
 
     // Buscar bancas para saldo inicial
-    const { data: bancas } = await supabase
+    let bancasQuery = supabase
         .from("bancas")
-        .select("saldo_inicial");
+        .select("id, nome, saldo_inicial");
+    if (bancaId !== "all") {
+        bancasQuery = bancasQuery.eq("id", bancaId);
+    }
+    const { data: bancas } = await bancasQuery;
+
+    const bancaMap = new Map<string, { nome: string; saldo_inicial: number }>();
+    bancas?.forEach((b) => bancaMap.set(b.id, { nome: b.nome, saldo_inicial: b.saldo_inicial }));
 
     const saldoInicial = bancas?.reduce((acc, b) => acc + (b.saldo_inicial || 0), 0) || 0;
 
     // Buscar apostas finalizadas com eventos para calcular evolução e ROI por esporte
-    const { data: apostas } = await supabase
+    let apostasQuery = supabase
         .from("apostas")
         .select(`
             id,
@@ -141,37 +190,74 @@ export async function getDashboardCharts(): Promise<DashboardChartsData> {
             stake,
             lucro_prejuizo,
             created_at,
+            banca_id,
             aposta_eventos (
                 esporte
             )
         `)
         .in("status", ["ganha", "perdida", "anulada"])
         .order("created_at", { ascending: true });
+    if (bancaId !== "all") {
+        apostasQuery = apostasQuery.eq("banca_id", bancaId);
+    }
+    const dateFilter = getDateFilter(periodo);
+    if (dateFilter) {
+        apostasQuery = apostasQuery.gte("created_at", dateFilter.toISOString());
+    }
+    const { data: apostas } = await apostasQuery;
 
-    // ===== EVOLUÇÃO DA BANCA =====
-    const evolutionMap = new Map<string, number>();
-    let saldoAtual = saldoInicial;
+    // ===== EVOLUÇÃO DA BANCA (MULTI-SÉRIES) =====
+    // Track running saldo per banca and total
+    const saldoPorBanca = new Map<string, number>();
+    bancas?.forEach((b) => saldoPorBanca.set(b.id, b.saldo_inicial));
+    let saldoTotal = saldoInicial;
+
+    // Map date -> snapshot of all saldos
+    const dateOrder: string[] = [];
+    const snapshots = new Map<string, { total: number; byBanca: Map<string, number> }>();
 
     apostas?.forEach((aposta) => {
-        saldoAtual += aposta.lucro_prejuizo || 0;
+        const pl = aposta.lucro_prejuizo || 0;
+        saldoTotal += pl;
+
+        const currentBancaSaldo = saldoPorBanca.get(aposta.banca_id) || 0;
+        saldoPorBanca.set(aposta.banca_id, currentBancaSaldo + pl);
+
         const dateObj = new Date(aposta.created_at);
         const dateKey = `${String(dateObj.getDate()).padStart(2, "0")}/${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
-        evolutionMap.set(dateKey, saldoAtual);
+
+        if (!snapshots.has(dateKey)) {
+            dateOrder.push(dateKey);
+        }
+
+        snapshots.set(dateKey, {
+            total: saldoTotal,
+            byBanca: new Map(saldoPorBanca),
+        });
     });
 
-    // Converter Map para array ordenado cronologicamente
-    const evolutionData: BankrollEvolutionData[] = [];
+    const bancaNomes = bancas?.map((b) => b.nome) || [];
+    const evolutionData: MultiSeriesEvolutionData[] = [];
 
-    // Se tiver apostas, adicionar ponto inicial
+    // Add initial data point
     if (apostas && apostas.length > 0) {
         const firstDate = new Date(apostas[0].created_at);
         firstDate.setDate(firstDate.getDate() - 1);
         const initialDateKey = `${String(firstDate.getDate()).padStart(2, "0")}/${String(firstDate.getMonth() + 1).padStart(2, "0")}`;
-        evolutionData.push({ date: initialDateKey, saldo: saldoInicial });
+        const initialPoint: MultiSeriesEvolutionData = { date: initialDateKey, total: saldoInicial };
+        bancas?.forEach((b) => {
+            initialPoint[b.nome] = b.saldo_inicial;
+        });
+        evolutionData.push(initialPoint);
     }
 
-    evolutionMap.forEach((saldo, date) => {
-        evolutionData.push({ date, saldo });
+    dateOrder.forEach((dateKey) => {
+        const snapshot = snapshots.get(dateKey)!;
+        const point: MultiSeriesEvolutionData = { date: dateKey, total: snapshot.total };
+        bancas?.forEach((b) => {
+            point[b.nome] = snapshot.byBanca.get(b.id) || b.saldo_inicial;
+        });
+        evolutionData.push(point);
     });
 
     // ===== ROI POR ESPORTE =====
@@ -184,10 +270,8 @@ export async function getDashboardCharts(): Promise<DashboardChartsData> {
         if (!eventos || eventos.length === 0) {
             sportCategory = "Outros";
         } else if (aposta.tipo === "simples" || eventos.length === 1) {
-            // Aposta simples: usa o esporte do único evento
             sportCategory = eventos[0].esporte || "Outros";
         } else {
-            // Aposta múltipla: verificar se todos são do mesmo esporte
             const uniqueSports = [...new Set(eventos.map(e => e.esporte))];
             if (uniqueSports.length === 1) {
                 sportCategory = uniqueSports[0] || "Outros";
@@ -216,11 +300,11 @@ export async function getDashboardCharts(): Promise<DashboardChartsData> {
         });
     });
 
-    // Ordenar por ROI decrescente
     roiData.sort((a, b) => b.roi - a.roi);
 
     return {
         evolutionData,
         roiData,
+        bancaNomes,
     };
 }

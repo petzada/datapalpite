@@ -125,27 +125,29 @@ export function Sidebar({ user }: SidebarProps) {
             {/* User Menu */}
             <div className="p-4">
                 <div className="flex items-center gap-3">
-                    <Avatar className="w-10 h-10 border-2 border-white/30">
-                        <AvatarImage src={user.avatarUrl} alt={user.name} />
-                        <AvatarFallback className="bg-white/20 text-white text-sm font-medium">
-                            {getInitials(user.name)}
-                        </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">
-                            {user.name}
-                        </p>
-                        <p className="text-xs text-white/60 truncate">
-                            {user.email}
-                        </p>
-                    </div>
+                    <Link href="/dashboard/minha-conta" className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+                        <Avatar className="w-10 h-10 border-2 border-white/30">
+                            <AvatarImage src={user.avatarUrl} alt={user.name} />
+                            <AvatarFallback className="bg-white/20 text-white text-sm font-medium">
+                                {getInitials(user.name)}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white truncate">
+                                {user.name}
+                            </p>
+                            <p className="text-xs text-white/60 truncate">
+                                {user.email}
+                            </p>
+                        </div>
+                    </Link>
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="text-white/80 hover:text-white hover:bg-white/10"
+                                    className="text-white/80 hover:text-white hover:bg-white/10 shrink-0"
                                     onClick={handleLogout}
                                 >
                                     <LogOut className="w-5 h-5" />

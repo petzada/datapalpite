@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Menu, X, Settings, LogOut, User, Wallet, Target, Calculator, Bot, Crown } from "lucide-react";
+import { Home, Menu, X, LogOut, User, Wallet, Target, Calculator, Bot, Crown } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -115,20 +115,12 @@ export function MobileNav({ user }: MobileNavProps) {
                                 Planos
                             </Link>
                             <Link
-                                href="/dashboard/configuracoes"
-                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors"
-                                onClick={() => setMenuOpen(false)}
-                            >
-                                <Settings className="w-5 h-5" />
-                                Configuracoes
-                            </Link>
-                            <Link
-                                href="/dashboard/perfil"
+                                href="/dashboard/minha-conta"
                                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors"
                                 onClick={() => setMenuOpen(false)}
                             >
                                 <User className="w-5 h-5" />
-                                Perfil
+                                Minha Conta
                             </Link>
                             <Separator className="my-2" />
                             <button

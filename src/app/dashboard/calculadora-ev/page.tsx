@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function CalculadoraEvPage() {
     return (
-        <div className="w-full max-w-4xl">
+        <div className="w-full">
             <div className="mb-6">
                 <h1 className="text-2xl font-bold">Calculadora EV+</h1>
                 <p className="text-muted-foreground mt-1">
